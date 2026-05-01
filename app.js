@@ -1364,6 +1364,17 @@ const exerciseMediaCache = new Map();
 const exerciseMediaLoads = new Map();
 const root = document.getElementById('app');
 
+function isGitHubPagesHost() {
+  return window.location.hostname.endsWith('github.io');
+}
+
+function cloudUnavailableCopy() {
+  if (isGitHubPagesHost()) {
+    return 'Cloud login is not included on this free GitHub Pages version. Your workouts and profile stay saved on this device.';
+  }
+  return 'Turn on Netlify Identity for this site to let users log in and keep their data across devices.';
+}
+
 function getIdentityClient() {
   return window.SA7DIdentity || null;
 }
@@ -1383,7 +1394,7 @@ function userDisplayName(user) {
 
 function cloudStatusCopy() {
   if (!isCloudAvailable()) {
-    return 'Turn on Netlify Identity for this site to let users log in and keep their data across devices.';
+    return cloudUnavailableCopy();
   }
   if (!authReady) {
     return 'Checking your cloud session...';
@@ -1460,7 +1471,7 @@ function normalizeAuthError(error, mode = 'auth') {
     return 'Sign up is turned off on this site. Enable Open registration in Netlify Identity.';
   }
   if (lower.includes('netlify identity is not available')) {
-    return 'Netlify Identity is not turned on yet for this site.';
+    return cloudUnavailableCopy();
   }
   if (lower.includes('invalid login') || lower.includes('invalid email') || lower.includes('invalid password') || lower.includes('bad credentials')) {
     return mode === 'login' ? 'Email or password is incorrect.' : 'These details are not valid.';
@@ -1655,7 +1666,7 @@ async function restoreCloudState() {
 async function sendCloudResetLink(email) {
   const identity = getIdentityClient();
   if (!identity) {
-    showToast('Cloud save is only available on the deployed Netlify site.');
+    showToast(cloudUnavailableCopy());
     return;
   }
 
@@ -1713,7 +1724,7 @@ async function resetCloudPassword(password) {
 async function loginToCloud(email, password) {
   const identity = getIdentityClient();
   if (!identity) {
-    showToast('Cloud save is only available on the deployed Netlify site.');
+    showToast(cloudUnavailableCopy());
     return;
   }
 
@@ -1740,7 +1751,7 @@ async function loginToCloud(email, password) {
 async function signupForCloud(name, email, password) {
   const identity = getIdentityClient();
   if (!identity) {
-    showToast('Cloud save is only available on the deployed Netlify site.');
+    showToast(cloudUnavailableCopy());
     return;
   }
 
@@ -4458,7 +4469,7 @@ function renderCloudSettings() {
           <div class="cloud-copy">
             <p class="section-kicker accent">Cloud Save</p>
             <h3 class="section-title">Login + Backup</h3>
-            <p class="helper-copy muted">Enable Netlify Identity in your Netlify project first, then users can create accounts and sync their workouts across devices.</p>
+            <p class="helper-copy muted">${escapeHtml(cloudUnavailableCopy())}</p>
           </div>
         </div>
       </section>
