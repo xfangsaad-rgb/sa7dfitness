@@ -4,7 +4,7 @@
   "webDir": "publish",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://sa7dfitness.netlify.app",
+    "url": "https://sa7dfitness.netlify.app/?appShell=1",
     "cleartext": false
   }
 }

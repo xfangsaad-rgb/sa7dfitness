@@ -46,6 +46,10 @@ body {
   overscroll-behavior: none;
 }
 
+html.mode-app body {
+  overflow: hidden;
+}
+
 button,
 input,
 select {
@@ -2036,6 +2040,85 @@ img {
   .stats-row {
     grid-template-columns: 1fr;
   }
+}
+
+html.mode-app .desktop-shell {
+  display: block;
+  min-height: 100dvh;
+  padding: 0;
+}
+
+html.mode-app .intro-panel {
+  display: none;
+}
+
+html.mode-app .phone-stage {
+  display: block;
+  min-height: 100dvh;
+}
+
+html.mode-app .phone-frame {
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  height: 100dvh;
+  aspect-ratio: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+html.mode-app .phone-notch {
+  display: none;
+}
+
+html.mode-app .app-shell {
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html.mode-app .screen-scroll {
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 1rem)
+    clamp(0.95rem, 4vw, 1.2rem)
+    0;
+}
+
+html.mode-app .screen {
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding-bottom: 8rem;
+}
+
+html.mode-app .screen.tight {
+  padding-bottom: 2rem;
+}
+
+html.mode-app .nav-bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  gap: 0.25rem;
+  padding: 0.55rem 0.75rem calc(env(safe-area-inset-bottom, 0px) + 0.45rem);
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 24px 24px 0 0;
+  background: rgba(10, 8, 18, 0.96);
+  box-shadow: 0 -10px 36px rgba(0, 0, 0, 0.34);
+}
+
+html.mode-app .toast {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+}
+
+html.mode-app .drawer-panel {
+  top: calc(env(safe-area-inset-top, 0px) + 0.65rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.65rem);
 }
 
 @media (display-mode: standalone) {

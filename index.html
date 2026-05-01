@@ -2,17 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#140a22">
   <meta name="application-name" content="SA7D Fitness">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="manifest.webmanifest?v=9">
-  <link rel="icon" type="image/png" href="icons/app-logo.png?v=9">
-  <link rel="shortcut icon" href="icons/app-logo.png?v=9">
-  <link rel="apple-touch-icon" href="icons/app-logo.png?v=9">
+  <link rel="manifest" href="manifest.webmanifest?v=10">
+  <link rel="icon" type="image/png" href="icons/app-logo.png?v=10">
+  <link rel="shortcut icon" href="icons/app-logo.png?v=10">
+  <link rel="apple-touch-icon" href="icons/app-logo.png?v=10">
   <title>SA7D Fitness</title>
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+      const nativeShell = !!(window.Capacitor && (
+        (typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ||
+        (typeof window.Capacitor.getPlatform === 'function' && ['android', 'ios'].includes(window.Capacitor.getPlatform()))
+      ));
+      document.documentElement.classList.add(params.get('appShell') === '1' || standalone || nativeShell ? 'mode-app' : 'mode-website');
+    })();
+  </script>
 </head>
 <body>
   <div class="page-glow page-glow-left"></div>
@@ -56,7 +67,7 @@
     </main>
   </div>
 
-  <script src="identity-client.js?v=9"></script>
-  <script src="app.js?v=9"></script>
+  <script src="identity-client.js?v=10"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

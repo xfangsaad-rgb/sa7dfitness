@@ -2055,11 +2055,41 @@ function groupedNotifications(list) {
 }
 
 function isStandaloneMode() {
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+}
+
+function hasAppShellQuery() {
+  return new URLSearchParams(window.location.search).get('appShell') === '1';
+}
+
+function isNativeShellMode() {
+  try {
+    if (!window.Capacitor) {
+      return false;
+    }
+    if (typeof window.Capacitor.isNativePlatform === 'function') {
+      return window.Capacitor.isNativePlatform();
+    }
+    if (typeof window.Capacitor.getPlatform === 'function') {
+      return ['android', 'ios'].includes(window.Capacitor.getPlatform());
+    }
+  } catch (error) {
+    console.warn(error);
+  }
+  return false;
+}
+
+function isAppMode() {
+  return isStandaloneMode() || hasAppShellQuery() || isNativeShellMode();
 }
 
 function isWebsiteMode() {
-  return !isStandaloneMode();
+  return !isAppMode();
+}
+
+function syncShellModeClass() {
+  document.documentElement.classList.toggle('mode-app', isAppMode());
+  document.documentElement.classList.toggle('mode-website', isWebsiteMode());
 }
 
 function shouldUseWebsiteAuthEntry() {
@@ -2080,11 +2110,11 @@ function enterAppAfterAuth() {
 }
 
 function shouldShowInstallAction() {
-  return !isStandaloneMode();
+  return isWebsiteMode();
 }
 
 function shouldShowAndroidApkDownload() {
-  return !isStandaloneMode();
+  return isWebsiteMode();
 }
 
 function triggerAndroidApkDownload() {
@@ -2654,7 +2684,7 @@ function syncRestTimer() {
 }
 
 function renderStatusBar() {
-  if (isStandaloneMode()) {
+  if (isAppMode()) {
     return '';
   }
 
@@ -4879,6 +4909,7 @@ function renderLineChart(log, stroke) {
 }
 
 function renderApp(shouldPersist = false) {
+  syncShellModeClass();
   const previousScreen = root.dataset.screen || '';
   const previousScroller = root.querySelector('.screen-scroll');
   const previousScrollTop = previousScroller ? previousScroller.scrollTop : 0;
@@ -5506,7 +5537,7 @@ if ('serviceWorker' in navigator) {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('./sw.js?v=9', { updateViaCache: 'none' })
+      .register('./sw.js?v=10', { updateViaCache: 'none' })
       .then((registration) => {
         if (registration.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
