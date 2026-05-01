@@ -3161,8 +3161,26 @@ root.addEventListener('submit', (event) => {
 renderApp();
 
 if ('serviceWorker' in navigator) {
+  let reloadingForServiceWorker = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadingForServiceWorker) {
+      return;
+    }
+    reloadingForServiceWorker = true;
+    window.location.reload();
+  });
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((error) => console.error(error));
+    navigator.serviceWorker
+      .register('./sw.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        return registration.update();
+      })
+      .catch((error) => console.error(error));
   });
 }
 
