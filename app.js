@@ -1432,8 +1432,7 @@ async function loginToCloud(email, password) {
     await identity.login(email, password);
     authUser = await identity.getUser();
     await syncCloudAfterLogin();
-    state.ui.screen = 'settings';
-    requestScrollReset();
+    enterAppAfterAuth();
   } catch (error) {
     console.error(error);
     authMessage = normalizeAuthError(error, 'login');
@@ -1468,8 +1467,7 @@ async function signupForCloud(name, email, password) {
       return;
     }
     await syncCloudAfterLogin();
-    state.ui.screen = 'settings';
-    requestScrollReset();
+    enterAppAfterAuth();
   } catch (error) {
     console.error(error);
     authMessage = normalizeAuthError(error, 'signup');
@@ -1535,6 +1533,10 @@ async function initCloudAuth() {
       authUser = user;
       if (user && event === identity.AUTH_EVENTS?.LOGIN && !authBusy) {
         await syncCloudAfterLogin();
+        if (shouldUseWebsiteAuthEntry()) {
+          enterAppAfterAuth();
+          renderApp();
+        }
         return;
       }
       if (!user) {
@@ -1555,11 +1557,15 @@ async function initCloudAuth() {
 
     if (callback?.type === 'confirmation' && authUser) {
       await syncCloudAfterLogin();
+      enterAppAfterAuth();
       return;
     }
 
     if (authUser) {
       state.cloud.lastError = '';
+      if (shouldUseWebsiteAuthEntry() && isAuthScreen()) {
+        enterAppAfterAuth();
+      }
       persistState({ scheduleCloud: false });
     } else if (shouldUseWebsiteAuthEntry() && !isAuthScreen()) {
       state.ui.screen = 'authIntro';
@@ -1704,6 +1710,15 @@ function shouldUseWebsiteAuthEntry() {
 
 function isAuthScreen(screen = state.ui.screen) {
   return ['authIntro', 'authLogin', 'authSignup', 'authForgot', 'authReset', 'cloudLogout'].includes(screen);
+}
+
+function postAuthScreen() {
+  return shouldUseWebsiteAuthEntry() ? 'home' : 'settings';
+}
+
+function enterAppAfterAuth() {
+  state.ui.screen = postAuthScreen();
+  requestScrollReset();
 }
 
 function shouldShowInstallAction() {
