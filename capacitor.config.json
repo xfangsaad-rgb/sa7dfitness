@@ -1,0 +1,10 @@
+{
+  "appId": "com.sa7dfitness.app",
+  "appName": "SA7D Fitness",
+  "webDir": "publish",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://sa7dfitness.netlify.app",
+    "cleartext": false
+  }
+}

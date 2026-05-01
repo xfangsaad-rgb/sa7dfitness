@@ -8,6 +8,15 @@ Open [index.html](C:\Users\saadm\Downloads\GYM\index.html) in a browser.
 
 Cloud save and login only work on the deployed Netlify site, because they use Netlify Identity and Netlify Functions.
 
+## Android APK
+
+This repo now includes a Capacitor Android app wrapper in [android](C:\Users\saadm\Downloads\GYM\android) with config in [capacitor.config.json](C:\Users\saadm\Downloads\GYM\capacitor.config.json).
+
+The generated debug APK is:
+[app-debug.apk](C:\Users\saadm\Downloads\GYM\android\app\build\outputs\apk\debug\app-debug.apk)
+
+This Android app loads the live site at [https://sa7dfitness.netlify.app](https://sa7dfitness.netlify.app), so website updates can show inside the app without rebuilding the APK. Internet is required for the app to load.
+
 ## Publish
 
 The app now uses:

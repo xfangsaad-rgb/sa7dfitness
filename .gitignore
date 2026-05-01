@@ -5,3 +5,8 @@ tools/
 *.zip
 *-check.png
 home-check.png
+android/.gradle/
+android/.gradle-user/
+android/app/build/
+android/build/
+android/local.properties
