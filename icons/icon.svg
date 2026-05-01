@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#12091f"/>
+      <stop offset="100%" stop-color="#07040d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="24%" r="70%">
+      <stop offset="0%" stop-color="#c084fc" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#8b5cf6" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="purpleWord" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eddcff"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#9b5cff" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="#06030a"/>
+  <rect x="18" y="18" width="476" height="476" rx="110" fill="url(#bg)"/>
+  <rect x="18" y="18" width="476" height="476" rx="110" fill="url(#glow)"/>
+  <rect x="18" y="18" width="476" height="476" rx="110" fill="none" stroke="rgba(255,255,255,0.1)"/>
+
+  <g filter="url(#softGlow)" opacity="0.95">
+    <path d="M256 92c25 0 54 16 72 40 10 13 17 29 18 45-9-14-22-26-39-33-12-5-26-8-39-8-22 0-43 8-58 22-15-9-32-14-49-14-12 0-25 2-37 7 6-22 20-41 39-54 26-18 59-24 93-5Z" fill="#0a0710"/>
+    <path d="M173 188c22-30 51-45 83-45 32 0 61 16 83 47-4 18-14 33-29 44-18 13-38 20-54 20-19 0-40-7-58-20-14-11-23-27-25-46Z" fill="#07040a"/>
+    <path d="M163 212c27 24 58 37 93 37 34 0 66-13 93-38-2 38-16 69-43 95-17 16-34 25-50 25-18 0-36-10-54-29-24-25-37-55-39-90Z" fill="#09050c"/>
+    <path d="M220 204c10 1 19 5 29 12-10 6-20 9-29 10 2-8 2-15 0-22Zm74 0c-2 8-2 15 0 22 9-1 18-4 29-10-10-7-19-11-29-12Z" fill="#f4edff"/>
+    <path d="M222 214c11-7 19-10 27-10-7 10-15 16-27 18Zm68-10c8 0 16 3 27 10-12 8-20 14-27 18-2-7-2-15 0-28Z" fill="#a970ff"/>
+  </g>
+
+  <g opacity="0.9">
+    <path d="M58 372c0-14 11-25 25-25h34c14 0 25 11 25 25v15c0 14-11 25-25 25H83c-14 0-25-11-25-25Zm312 0c0-14 11-25 25-25h34c14 0 25 11 25 25v15c0 14-11 25-25 25h-34c-14 0-25-11-25-25Z" fill="#1a1029"/>
+    <circle cx="100" cy="379" r="35" fill="none" stroke="#efe8ff" stroke-opacity="0.45" stroke-width="10"/>
+    <circle cx="412" cy="379" r="35" fill="none" stroke="#efe8ff" stroke-opacity="0.45" stroke-width="10"/>
+    <path d="M136 379h76M300 379h76" stroke="#e9e1ff" stroke-opacity="0.84" stroke-linecap="round" stroke-width="12"/>
+    <path d="M151 354v50M166 346v66M346 346v66M361 354v50" stroke="#9b5cff" stroke-linecap="round" stroke-width="12"/>
+  </g>
+
+  <g transform="translate(46 318)">
+    <g transform="skewX(-14)">
+      <text x="0" y="92" fill="#ffffff" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="120" font-style="italic" font-weight="700" letter-spacing="-6">Sa</text>
+      <text x="152" y="106" fill="url(#purpleWord)" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="180" font-style="italic" font-weight="900" letter-spacing="-8">7</text>
+      <text x="274" y="92" fill="#ffffff" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="120" font-style="italic" font-weight="700" letter-spacing="-6">d</text>
+    </g>
+  </g>
+</svg>

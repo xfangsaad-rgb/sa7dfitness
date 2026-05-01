@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#140a22">
+  <meta name="application-name" content="SA7D Fitness">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>SA7D Fitness</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-glow page-glow-left"></div>
+  <div class="page-glow page-glow-right"></div>
+  <div class="desktop-shell">
+    <section class="intro-panel">
+      <p class="eyebrow">Performance System</p>
+      <img class="intro-logo" src="icons/app-logo.png" alt="SA7D Fitness">
+      <p class="intro-copy">
+        A fully interactive workout app inspired by your reference image, with working plans,
+        live workout tracking, progress charts, profile editing, exercise library, history, and calendar.
+      </p>
+      <div class="feature-pills">
+        <span>Workout Flow</span>
+        <span>Progress</span>
+        <span>Profile</span>
+        <span>Calendar</span>
+        <span>History</span>
+      </div>
+      <div class="intro-card">
+        <p class="intro-label">What works</p>
+        <ul>
+          <li>Start and complete workouts</li>
+          <li>Edit your profile, plans, and sets</li>
+          <li>Add exercises from the library</li>
+          <li>Track weekly goal and completed sessions</li>
+          <li>Assign workout days in the calendar</li>
+        </ul>
+      </div>
+    </section>
+
+    <main class="phone-stage">
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div id="app" class="app-shell"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

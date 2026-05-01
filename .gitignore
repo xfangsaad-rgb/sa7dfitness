@@ -1,0 +1,6 @@
+.netlify/
+publish/
+tools/
+*.zip
+*-check.png
+home-check.png
