@@ -923,6 +923,106 @@ img {
   font-size: 0.75rem;
 }
 
+.guide-hero-card {
+  overflow: hidden;
+}
+
+.guide-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.12);
+  color: #f3ebff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.guide-player-shell {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(15, 11, 28, 0.98), rgba(7, 5, 16, 0.98));
+  margin-top: 0.9rem;
+}
+
+.guide-motion-svg,
+.guide-player-video,
+.guide-player-image {
+  display: block;
+  width: 100%;
+}
+
+.guide-player-video,
+.guide-player-image {
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #0c0717;
+}
+
+.guide-loading {
+  display: grid;
+  place-items: center;
+  min-height: 13rem;
+  padding: 1.5rem;
+}
+
+.guide-note {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.95rem;
+}
+
+.guide-support-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.guide-step-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.guide-step-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.guide-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #bf8bff, #8b5cf6);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.guide-mistake-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+}
+
+.guide-mistake-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f5f2ff;
+  font-size: 0.82rem;
+}
+
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

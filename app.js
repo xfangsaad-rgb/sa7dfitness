@@ -4,6 +4,7 @@ const DEEP_SCREENS = new Set([
   'editProfile',
   'editPlan',
   'editExercise',
+  'exerciseGuide',
   'library',
   'history',
   'calendar',
@@ -29,6 +30,7 @@ const MAIN_NAV = {
   editProfile: 'profile',
   editPlan: 'workout',
   editExercise: 'workout',
+  exerciseGuide: 'workout',
   library: 'workout',
   history: 'profile',
   calendar: 'profile',
@@ -49,6 +51,9 @@ const GOALS = ['Bulking', 'Cutting', 'Maintain'];
 const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced'];
 const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
 const CLOUD_SYNC_DELAY = 1800;
+const MEDIA_DB_NAME = 'sa7d-exercise-media';
+const MEDIA_STORE_NAME = 'exercise-assets';
+const CUSTOM_VIDEO_LIMIT_BYTES = 18 * 1024 * 1024;
 
 const ICONS = {
   menu:
@@ -116,7 +121,9 @@ const ICONS = {
   lock:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 10.5V8.7A3.5 3.5 0 0 1 12 5.2a3.5 3.5 0 0 1 3.5 3.5v1.8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"/></svg>',
   eye:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12s3-5 8.5-5 8.5 5 8.5 5-3 5-8.5 5-8.5-5-8.5-5Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/><circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>'
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12s3-5 8.5-5 8.5 5 8.5 5-3 5-8.5 5-8.5-5-8.5-5Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/><circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  play:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6.5v11l9-5.5Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7"/></svg>'
 };
 
 function svgToUri(svg) {
@@ -488,6 +495,166 @@ const LIBRARY = [
   }
 ];
 
+function createGuide(motion, focus, beginnerTip, steps, mistakes) {
+  return {
+    motion,
+    focus,
+    beginnerTip,
+    steps,
+    mistakes
+  };
+}
+
+const BEGINNER_GUIDES = {
+  'bench-press': createGuide(
+    'bench-press',
+    'Chest, front delts, and triceps',
+    'Start with the empty bar or light dumbbells until every rep looks the same.',
+    ['Plant both feet hard on the floor.', 'Lower the bar to mid chest with tight shoulders.', 'Press back up without bouncing the bar.'],
+    ['Flaring the elbows too wide', 'Lifting the hips off the bench']
+  ),
+  'incline-dumbbell-press': createGuide(
+    'incline-press',
+    'Upper chest and shoulders',
+    'Use a low incline and light dumbbells first so you can control the path.',
+    ['Set the bench to a gentle incline.', 'Lower the dumbbells beside the upper chest.', 'Drive up and meet the bells above your shoulders.'],
+    ['Arching too hard', 'Letting the dumbbells drift behind the head']
+  ),
+  'dumbbell-fly': createGuide(
+    'dumbbell-fly',
+    'Chest stretch and squeeze',
+    'Keep a soft elbow bend and use less weight than your press.',
+    ['Open the arms wide with a slight bend in the elbows.', 'Stop when the chest is stretched, not the shoulders.', 'Bring the bells back together by hugging the chest in.'],
+    ['Turning it into a press', 'Dropping too low and stressing the shoulders']
+  ),
+  'push-ups': createGuide(
+    'push-up',
+    'Chest, shoulders, triceps, and core',
+    'Elevate the hands on a bench if floor reps feel too hard at first.',
+    ['Make a straight line from head to heels.', 'Lower the chest between the hands with a tight core.', 'Press the floor away and lock in the plank again.'],
+    ['Hips sagging', 'Looking forward and crunching the neck']
+  ),
+  'tricep-pushdown': createGuide(
+    'pushdown',
+    'Triceps lockout strength',
+    'Pick a cable weight you can move without leaning your whole body into it.',
+    ['Pin the elbows beside your ribs.', 'Push the handle down until the arms are straight.', 'Return slowly without letting the elbows drift forward.'],
+    ['Swinging the torso', 'Letting the elbows travel']
+  ),
+  'overhead-tricep-extension': createGuide(
+    'overhead-extension',
+    'Long-head triceps stretch',
+    'Keep your ribs down and use a lighter load than a pushdown.',
+    ['Hold the weight above the head with braced abs.', 'Lower behind the head while the elbows point forward.', 'Extend up without letting the elbows flare wide.'],
+    ['Arching the lower back', 'Letting the elbows split apart']
+  ),
+  'lat-pulldown': createGuide(
+    'pulldown',
+    'Lats and upper back',
+    'Use a weight that lets you pull to the upper chest without rocking back.',
+    ['Sit tall and lock the legs under the pad.', 'Pull elbows down toward your ribs.', 'Control the bar back up until the shoulders are stretched.'],
+    ['Pulling behind the neck', 'Turning it into a full body swing']
+  ),
+  'seated-row': createGuide(
+    'row',
+    'Mid-back thickness',
+    'Stay tall on the seat and keep your chest proud on every rep.',
+    ['Reach forward with a flat back.', 'Row the handle toward the waist.', 'Pause and squeeze the shoulder blades together.'],
+    ['Shrugging the shoulders up', 'Leaning too far back']
+  ),
+  'single-arm-row': createGuide(
+    'single-row',
+    'Lat control one side at a time',
+    'Start light so you can keep the hips square the whole set.',
+    ['Support one hand and brace your core.', 'Pull the elbow toward the back pocket.', 'Lower the weight under control without twisting open.'],
+    ['Rotating the torso', 'Jerking the dumbbell off the floor']
+  ),
+  'hammer-curl': createGuide(
+    'curl',
+    'Biceps and forearms',
+    'Keep the dumbbells light enough to avoid swinging.',
+    ['Stand tall with palms facing each other.', 'Curl without moving the upper arm forward.', 'Lower slowly until the elbows are straight again.'],
+    ['Rocking the body', 'Shrugging the shoulders']
+  ),
+  'barbell-curl': createGuide(
+    'curl',
+    'Biceps peak tension',
+    'Keep your elbows tucked and stop the set when the body starts swaying.',
+    ['Grip the bar just outside the hips.', 'Curl toward the shoulders while the elbows stay close.', 'Lower back down with full control.'],
+    ['Swinging the hips', 'Cutting the lowering phase short']
+  ),
+  'back-squat': createGuide(
+    'squat',
+    'Legs, glutes, and full-body bracing',
+    'Practice with bodyweight or an empty bar before loading heavy.',
+    ['Brace your core before you move.', 'Sit down and between the hips with knees tracking over the feet.', 'Drive up through the whole foot and stand tall.'],
+    ['Heels lifting off the floor', 'Knees collapsing inward']
+  ),
+  'romanian-deadlift': createGuide(
+    'hinge',
+    'Hamstrings and glutes',
+    'Think hips back, not chest down, and keep the bar very close to the legs.',
+    ['Soften the knees and brace the abs.', 'Push the hips back until the hamstrings stretch.', 'Stand up by squeezing the glutes forward.'],
+    ['Rounding the back', 'Turning it into a squat']
+  ),
+  'leg-press': createGuide(
+    'leg-press',
+    'Quads and glutes',
+    'Use a range where your lower back stays glued to the pad.',
+    ['Place feet shoulder width on the platform.', 'Lower until the knees bend deeply without the hips rolling up.', 'Press through the mid-foot and stop before snapping the knees.'],
+    ['Locking the knees hard', 'Letting the hips lift off the seat']
+  ),
+  'walking-lunges': createGuide(
+    'lunge',
+    'Leg balance and coordination',
+    'Take shorter, lighter practice steps first to own your balance.',
+    ['Step forward and keep the torso tall.', 'Lower both knees with control.', 'Push through the front heel and bring the back leg through.'],
+    ['Feet landing on a tight line', 'Leaning too far forward']
+  ),
+  'calf-raises': createGuide(
+    'calf-raise',
+    'Calves and ankle control',
+    'Use a slow pause at the top instead of loading the movement too fast.',
+    ['Rise onto the balls of the feet.', 'Pause and squeeze the calves hard at the top.', 'Lower all the way down before the next rep.'],
+    ['Bouncing through the reps', 'Rolling the ankles outward']
+  ),
+  'overhead-press': createGuide(
+    'overhead-press',
+    'Shoulders, triceps, and core',
+    'Squeeze your glutes and ribs down before every press.',
+    ['Start with the weight near the upper chest.', 'Press straight up and move the head slightly back out of the way.', 'Finish with the biceps near the ears.'],
+    ['Overarching the lower back', 'Pressing out in front instead of overhead']
+  ),
+  'lateral-raise': createGuide(
+    'lateral-raise',
+    'Side delts',
+    'Use lighter dumbbells and smooth tempo to feel the shoulder doing the work.',
+    ['Stand tall with a slight bend in the elbows.', 'Lift the arms out to shoulder height.', 'Lower slowly without dropping the weights.'],
+    ['Swinging the torso', 'Shrugging the traps']
+  ),
+  'face-pulls': createGuide(
+    'face-pull',
+    'Rear delts and upper back',
+    'Set the cable around face height and move slower than you think.',
+    ['Pull the rope toward the eyebrows.', 'Spread the hands apart as the elbows travel back.', 'Finish with the shoulders down and chest tall.'],
+    ['Turning it into a row to the chest', 'Losing wrist alignment']
+  ),
+  dips: createGuide(
+    'dips',
+    'Chest and triceps pressing',
+    'Use an assisted machine or band if bodyweight reps are too hard today.',
+    ['Hold the bars with the shoulders packed down.', 'Lower until you still feel stable in the shoulders.', 'Press back up without swinging the legs.'],
+    ['Dropping too deep too soon', 'Shoulders creeping toward the ears']
+  ),
+  'cable-curl': createGuide(
+    'curl',
+    'Biceps with constant tension',
+    'Take a half step back from the cable so the stack stays lifted all set.',
+    ['Stand tall with elbows close to the ribs.', 'Curl the handle while keeping the shoulders quiet.', 'Lower with control until the arms are straight again.'],
+    ['Leaning into the cable', 'Letting the elbows drift forward']
+  )
+};
+
 function icon(name) {
   return `<span class="icon">${ICONS[name] || ''}</span>`;
 }
@@ -506,6 +673,24 @@ function planImage(plan) {
     return exerciseImage(plan.exercises[0]);
   }
   return CATEGORY_PHOTOS[plan?.art] || ART[plan?.art] || CATEGORY_PHOTOS.bench;
+}
+
+function guideDataForExercise(exercise) {
+  const key = exercise?.libId || exercise?.id;
+  if (BEGINNER_GUIDES[key]) {
+    return BEGINNER_GUIDES[key];
+  }
+  return createGuide(
+    'bench-press',
+    `${exercise?.category || 'Full body'} movement`,
+    'Use light weight first and stop the set when the rep path changes.',
+    ['Set your body before each rep.', exercise?.cue || 'Move with control.', 'Finish the rep and reset your position.'],
+    ['Rushing the reps', 'Adding weight before form is stable']
+  );
+}
+
+function guideButtonLabel(exercise) {
+  return exercise?.customVideoKey ? 'Watch Video' : 'How to do';
 }
 
 function clone(value) {
@@ -622,6 +807,9 @@ function buildExercise(baseId, setRows) {
     art: source.art,
     cue: source.cue,
     customImage: '',
+    customVideoKey: '',
+    customVideoName: '',
+    customVideoType: '',
     sets: buildSets(setRows.map((set) => ({ ...set, prefix: baseId })))
   };
 }
@@ -919,6 +1107,9 @@ function createDefaultState() {
       screen: 'home',
       selectedDate: today,
       selectedPlanId: schedule[today] || plans[0].id,
+      guidePlanId: plans[0].id,
+      guideExerciseId: plans[0].exercises[0]?.id || '',
+      guideReturnScreen: 'workoutPlan',
       progressTab: 'overview',
       historyFilter: 'all',
       librarySearch: '',
@@ -951,11 +1142,26 @@ function isValidStateShape(value) {
   return Boolean(value && Array.isArray(value.plans) && value.profile);
 }
 
+function cloudSafeExercise(exercise) {
+  const next = clone(exercise);
+  delete next.customVideoKey;
+  delete next.customVideoName;
+  delete next.customVideoType;
+  return next;
+}
+
+function cloudSafePlan(plan) {
+  return {
+    ...plan,
+    exercises: plan.exercises.map(cloudSafeExercise)
+  };
+}
+
 function buildCloudState(source = state) {
   return {
     profile: source.profile,
     preferences: source.preferences,
-    plans: source.plans,
+    plans: source.plans.map(cloudSafePlan),
     schedule: source.schedule,
     history: source.history,
     notifications: source.notifications,
@@ -1069,6 +1275,9 @@ let cloudSyncTimer = null;
 let cloudSyncInFlight = null;
 let lastLocalFingerprint = fingerprintCloudState(state);
 let lastCloudFingerprint = state.cloud.lastSyncedAt ? lastLocalFingerprint : '';
+let mediaDbPromise = null;
+const exerciseMediaCache = new Map();
+const exerciseMediaLoads = new Map();
 const root = document.getElementById('app');
 
 function getIdentityClient() {
@@ -1604,6 +1813,21 @@ function getExercise(planId, exerciseId) {
   return plan.exercises.find((exercise) => exercise.id === exerciseId);
 }
 
+function openExerciseGuide(planId, exerciseId, backScreen = state.ui.screen) {
+  const exercise = getExercise(planId, exerciseId);
+  if (!exercise) {
+    return;
+  }
+  state.ui.drawerOpen = false;
+  state.ui.guidePlanId = planId;
+  state.ui.guideExerciseId = exerciseId;
+  state.ui.guideReturnScreen = backScreen;
+  state.ui.screen = 'exerciseGuide';
+  requestScrollReset();
+  persistState({ scheduleCloud: false });
+  renderApp();
+}
+
 function recentHistory() {
   return [...state.history].sort((a, b) => (a.date < b.date ? 1 : -1));
 }
@@ -1795,6 +2019,162 @@ function saveExerciseCustomImage(file) {
     });
 }
 
+function openExerciseMediaDb() {
+  if (!window.indexedDB) {
+    return Promise.reject(new Error('indexeddb-unavailable'));
+  }
+  if (!mediaDbPromise) {
+    mediaDbPromise = new Promise((resolve, reject) => {
+      const request = window.indexedDB.open(MEDIA_DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(MEDIA_STORE_NAME)) {
+          request.result.createObjectStore(MEDIA_STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('media-db-open-failed'));
+    });
+  }
+  return mediaDbPromise;
+}
+
+function runMediaRequest(mode, task) {
+  return openExerciseMediaDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const transaction = db.transaction(MEDIA_STORE_NAME, mode);
+        const store = transaction.objectStore(MEDIA_STORE_NAME);
+        const request = task(store);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('media-db-request-failed'));
+      })
+  );
+}
+
+function revokeCachedMedia(key) {
+  const cached = exerciseMediaCache.get(key);
+  if (cached?.objectUrl) {
+    URL.revokeObjectURL(cached.objectUrl);
+  }
+  exerciseMediaCache.delete(key);
+}
+
+function queueExerciseVideoLoad(exercise) {
+  const key = exercise?.customVideoKey;
+  if (!key || exerciseMediaCache.has(key) || exerciseMediaLoads.has(key)) {
+    return;
+  }
+  const load = runMediaRequest('readonly', (store) => store.get(key))
+    .then((record) => {
+      if (!record?.blob) {
+        exerciseMediaCache.set(key, { missing: true });
+        return;
+      }
+      const objectUrl = URL.createObjectURL(record.blob);
+      exerciseMediaCache.set(key, {
+        src: objectUrl,
+        objectUrl,
+        type: record.type || record.blob.type || 'video/mp4',
+        name: record.name || exercise.customVideoName || 'Custom video'
+      });
+    })
+    .catch(() => {
+      exerciseMediaCache.set(key, { missing: true });
+    })
+    .finally(() => {
+      exerciseMediaLoads.delete(key);
+      renderApp();
+    });
+  exerciseMediaLoads.set(key, load);
+}
+
+function customVideoMediaForExercise(exercise) {
+  const key = exercise?.customVideoKey;
+  if (!key) {
+    return null;
+  }
+  if (!exerciseMediaCache.has(key)) {
+    queueExerciseVideoLoad(exercise);
+    return { loading: true };
+  }
+  return exerciseMediaCache.get(key);
+}
+
+function purgeExerciseCustomVideo(exercise, { persist = false } = {}) {
+  if (!exercise?.customVideoKey) {
+    return;
+  }
+  const key = exercise.customVideoKey;
+  runMediaRequest('readwrite', (store) => store.delete(key)).catch(() => {});
+  revokeCachedMedia(key);
+  exercise.customVideoKey = '';
+  exercise.customVideoName = '';
+  exercise.customVideoType = '';
+  if (persist) {
+    persistState({ scheduleCloud: false });
+  }
+}
+
+function clearAllExerciseMedia() {
+  exerciseMediaCache.forEach((_, key) => revokeCachedMedia(key));
+  exerciseMediaLoads.clear();
+  return runMediaRequest('readwrite', (store) => store.clear()).catch(() => {});
+}
+
+function saveExerciseCustomVideo(file) {
+  const exercise = getExercise(state.ui.editingPlanId, state.ui.editingExerciseId);
+  if (!exercise || !file) {
+    return;
+  }
+  if (file.size > CUSTOM_VIDEO_LIMIT_BYTES) {
+    showToast('Keep custom videos under 18 MB');
+    renderApp();
+    return;
+  }
+  const key = exercise.customVideoKey || `exercise-video-${exercise.id}`;
+  revokeCachedMedia(key);
+  runMediaRequest('readwrite', (store) =>
+    store.put(
+      {
+        blob: file,
+        name: file.name,
+        type: file.type || (file.name.toLowerCase().endsWith('.gif') ? 'image/gif' : 'video/mp4'),
+        savedAt: new Date().toISOString()
+      },
+      key
+    )
+  )
+    .then(() => {
+      exercise.customVideoKey = key;
+      exercise.customVideoName = file.name;
+      exercise.customVideoType = file.type || (file.name.toLowerCase().endsWith('.gif') ? 'image/gif' : 'video/mp4');
+      persistState({ scheduleCloud: false });
+      showToast('Custom video saved on this device');
+      queueExerciseVideoLoad(exercise);
+      renderApp();
+    })
+    .catch((error) => {
+      console.error(error);
+      showToast('Could not save that video');
+      renderApp();
+    });
+}
+
+function resetExerciseCustomVideo() {
+  const exercise = getExercise(state.ui.editingPlanId, state.ui.editingExerciseId);
+  if (!exercise) {
+    return;
+  }
+  if (!exercise.customVideoKey) {
+    showToast('This exercise is already using the app guide');
+    renderApp();
+    return;
+  }
+  purgeExerciseCustomVideo(exercise, { persist: true });
+  showToast('Exercise guide reset');
+  renderApp();
+}
+
 async function promptInstallApp() {
   if (isStandaloneMode()) {
     showToast('SA7D is already installed on this device');
@@ -1951,6 +2331,8 @@ function deleteCurrentPlan() {
     return;
   }
   const planId = state.ui.editingPlanId;
+  const removedPlan = getPlan(planId);
+  removedPlan.exercises.forEach((exercise) => purgeExerciseCustomVideo(exercise));
   state.plans = state.plans.filter((plan) => plan.id !== planId);
   Object.keys(state.schedule).forEach((dateKey) => {
     if (state.schedule[dateKey] === planId) {
@@ -1986,6 +2368,8 @@ function deleteExerciseFromPlan(planId, exerciseId, options = {}) {
   if (removedIndex === -1) {
     return;
   }
+  const removedExercise = plan.exercises[removedIndex];
+  purgeExerciseCustomVideo(removedExercise);
 
   plan.exercises = plan.exercises.filter((exercise) => exercise.id !== exerciseId);
   state.ui.selectedPlanId = planId;
@@ -2025,6 +2409,7 @@ function changeCalendarMonth(step) {
 
 function resetDemo() {
   localStorage.removeItem(STORAGE_KEY);
+  clearAllExerciseMedia();
   state = createDefaultState();
   requestScrollReset();
   persistState();
@@ -2152,6 +2537,8 @@ function renderScreen() {
       return renderEditPlan();
     case 'editExercise':
       return renderEditExercise();
+    case 'exerciseGuide':
+      return renderExerciseGuide();
     case 'library':
       return renderLibrary();
     case 'history':
@@ -2375,6 +2762,447 @@ function renderWorkoutPlan() {
   `;
 }
 
+function renderGuideMotion(exercise) {
+  const guide = guideDataForExercise(exercise);
+  const label = escapeHtml(`${exercise.name} beginner motion guide`);
+  const renderGuideScene = (inner, animationCss = '') => `
+    <svg class="guide-motion-svg" viewBox="0 0 340 220" role="img" aria-label="${label}">
+      <style>
+        .guide-bg { fill: url(#guideBg); }
+        .guide-grid { stroke: rgba(255,255,255,0.08); stroke-width: 1; }
+        .guide-floor { fill: rgba(255,255,255,0.04); }
+        .guide-body { fill: #f4f1ff; }
+        .guide-body-soft { fill: rgba(244, 241, 255, 0.4); }
+        .guide-accent { fill: #a855f7; }
+        .guide-accent-soft { fill: rgba(168, 85, 247, 0.25); }
+        .guide-stroke { stroke: #f4f1ff; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+        .guide-stroke-soft { stroke: rgba(244,241,255,0.35); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+        .guide-arrow { stroke: #c084fc; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; fill: none; opacity: 0.95; }
+        .guide-glow { fill: rgba(168, 85, 247, 0.14); }
+        .guide-label { fill: #f4f1ff; font-size: 12px; font-family: Arial, sans-serif; opacity: 0.9; }
+        .guide-animate {
+          transform-box: fill-box;
+          transform-origin: center;
+        }
+        ${animationCss}
+      </style>
+      <defs>
+        <linearGradient id="guideBg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#11081f"/>
+          <stop offset="1" stop-color="#05040c"/>
+        </linearGradient>
+        <radialGradient id="guideGlow" cx="50%" cy="30%" r="65%">
+          <stop offset="0" stop-color="#a855f7" stop-opacity="0.42"/>
+          <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="340" height="220" rx="22" class="guide-bg"/>
+      <rect width="340" height="220" rx="22" fill="url(#guideGlow)"/>
+      <path d="M24 176H316" class="guide-grid"/>
+      <path d="M24 145H316" class="guide-grid"/>
+      <ellipse cx="170" cy="186" rx="130" ry="18" class="guide-floor"/>
+      ${inner}
+    </svg>
+  `;
+
+  switch (guide.motion) {
+    case 'incline-press':
+      return renderGuideScene(
+        `
+          <rect x="86" y="152" width="138" height="10" rx="5" class="guide-body-soft" transform="rotate(-18 86 152)"/>
+          <rect x="152" y="124" width="10" height="42" rx="5" class="guide-body-soft"/>
+          <g class="guide-animate guide-press-group">
+            <rect x="94" y="64" width="152" height="8" rx="4" class="guide-body"/>
+            <circle cx="100" cy="68" r="16" class="guide-body-soft"/>
+            <circle cx="240" cy="68" r="16" class="guide-body-soft"/>
+          </g>
+          <circle cx="162" cy="106" r="14" class="guide-body"/>
+          <path d="M153 120 128 147M171 118 194 142" class="guide-stroke"/>
+          <path d="M129 146 110 160M196 141 214 158" class="guide-stroke-soft"/>
+          <path d="M270 74v48m0-48-10 10m10-10 10 10m0 48-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-press-group { animation: guidePress 2s ease-in-out infinite; }
+          @keyframes guidePress { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(16px); } }
+        `
+      );
+    case 'dumbbell-fly':
+      return renderGuideScene(
+        `
+          <rect x="96" y="150" width="148" height="10" rx="5" class="guide-body-soft"/>
+          <circle cx="170" cy="112" r="14" class="guide-body"/>
+          <path d="M170 126 170 154" class="guide-stroke"/>
+          <g class="guide-animate guide-fly-left">
+            <path d="M165 134 116 110" class="guide-stroke"/>
+            <rect x="94" y="100" width="16" height="18" rx="6" class="guide-accent"/>
+          </g>
+          <g class="guide-animate guide-fly-right">
+            <path d="M175 134 224 110" class="guide-stroke"/>
+            <rect x="230" y="100" width="16" height="18" rx="6" class="guide-accent"/>
+          </g>
+          <path d="M88 96c18 8 26 25 26 25" class="guide-arrow"/>
+          <path d="M252 96c-18 8-26 25-26 25" class="guide-arrow"/>
+        `,
+        `
+          .guide-fly-left { animation: guideFlyLeft 2s ease-in-out infinite; }
+          .guide-fly-right { animation: guideFlyRight 2s ease-in-out infinite; }
+          @keyframes guideFlyLeft { 0%,100% { transform: rotate(0deg) translateX(0); } 50% { transform: rotate(10deg) translateX(18px); } }
+          @keyframes guideFlyRight { 0%,100% { transform: rotate(0deg) translateX(0); } 50% { transform: rotate(-10deg) translateX(-18px); } }
+        `
+      );
+    case 'push-up':
+      return renderGuideScene(
+        `
+          <g class="guide-animate guide-push-group">
+            <circle cx="248" cy="88" r="13" class="guide-body"/>
+            <path d="M236 100 188 130 120 136 88 158" class="guide-stroke"/>
+            <path d="M187 130 173 162M145 134 132 164" class="guide-stroke-soft"/>
+          </g>
+          <path d="M272 82v34m0-34-9 9m9-9 9 9m0 34-9-9m9 9 9-9" class="guide-arrow"/>
+        `,
+        `
+          .guide-push-group { animation: guidePush 1.8s ease-in-out infinite; }
+          @keyframes guidePush { 0%,100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
+        `
+      );
+    case 'pushdown':
+      return renderGuideScene(
+        `
+          <path d="M120 52V176" class="guide-stroke-soft"/>
+          <circle cx="170" cy="86" r="14" class="guide-body"/>
+          <path d="M170 100 170 142" class="guide-stroke"/>
+          <path d="M170 118 150 136M170 118 190 136" class="guide-stroke"/>
+          <path d="M170 142 154 174M170 142 186 174" class="guide-stroke-soft"/>
+          <g class="guide-animate guide-handle">
+            <rect x="144" y="104" width="52" height="10" rx="5" class="guide-accent"/>
+          </g>
+          <path d="M236 98v52m0-52-10 10m10-10 10 10m0 52-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-handle { animation: guidePushdown 1.7s ease-in-out infinite; }
+          @keyframes guidePushdown { 0%,100% { transform: translateY(0); } 50% { transform: translateY(28px); } }
+        `
+      );
+    case 'overhead-extension':
+      return renderGuideScene(
+        `
+          <circle cx="170" cy="88" r="14" class="guide-body"/>
+          <path d="M170 102 170 148" class="guide-stroke"/>
+          <path d="M170 120 152 174M170 120 188 174" class="guide-stroke-soft"/>
+          <g class="guide-animate guide-overhead">
+            <path d="M160 94 146 58M180 94 194 58" class="guide-stroke"/>
+            <rect x="144" y="48" width="52" height="10" rx="5" class="guide-accent"/>
+          </g>
+          <path d="M246 56v48m0-48-10 10m10-10 10 10m0 48-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-overhead { animation: guideOverhead 1.8s ease-in-out infinite; }
+          @keyframes guideOverhead { 0%,100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
+        `
+      );
+    case 'pulldown':
+      return renderGuideScene(
+        `
+          <path d="M90 46H250" class="guide-stroke-soft"/>
+          <path d="M110 46V176" class="guide-stroke-soft"/>
+          <circle cx="170" cy="98" r="14" class="guide-body"/>
+          <path d="M170 112 170 154" class="guide-stroke"/>
+          <path d="M170 128 148 152M170 128 192 152" class="guide-stroke"/>
+          <g class="guide-animate guide-pulldown-bar">
+            <rect x="118" y="54" width="104" height="10" rx="5" class="guide-body"/>
+          </g>
+          <path d="M280 58v58m0-58-10 10m10-10 10 10m0 58-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-pulldown-bar { animation: guidePulldown 1.9s ease-in-out infinite; }
+          @keyframes guidePulldown { 0%,100% { transform: translateY(0); } 50% { transform: translateY(28px); } }
+        `
+      );
+    case 'row':
+    case 'single-row':
+    case 'face-pull':
+      return renderGuideScene(
+        `
+          <path d="M252 64V176" class="guide-stroke-soft"/>
+          <circle cx="132" cy="92" r="14" class="guide-body"/>
+          <path d="M132 106 132 150" class="guide-stroke"/>
+          <path d="M132 120 152 136M132 120 112 136" class="guide-stroke"/>
+          <g class="guide-animate guide-row-handle">
+            <rect x="164" y="108" width="58" height="10" rx="5" class="guide-accent"/>
+          </g>
+          <path d="M282 98h-64m64 0-10-10m10 10-10 10m-64 32h64m-64 0 10-10m-10 10 10 10" class="guide-arrow"/>
+        `,
+        `
+          .guide-row-handle { animation: guideRow 1.8s ease-in-out infinite; }
+          @keyframes guideRow { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-28px); } }
+        `
+      );
+    case 'curl':
+      return renderGuideScene(
+        `
+          <circle cx="170" cy="78" r="14" class="guide-body"/>
+          <path d="M170 92 170 146" class="guide-stroke"/>
+          <path d="M170 108 146 128M170 108 194 128" class="guide-stroke"/>
+          <path d="M170 146 154 180M170 146 186 180" class="guide-stroke-soft"/>
+          <g class="guide-animate guide-curl-left">
+            <rect x="134" y="124" width="14" height="22" rx="6" class="guide-accent"/>
+          </g>
+          <g class="guide-animate guide-curl-right">
+            <rect x="192" y="124" width="14" height="22" rx="6" class="guide-accent"/>
+          </g>
+          <path d="M112 118c14 10 18 28 18 28" class="guide-arrow"/>
+          <path d="M228 118c-14 10-18 28-18 28" class="guide-arrow"/>
+        `,
+        `
+          .guide-curl-left { animation: guideCurlLeft 1.8s ease-in-out infinite; }
+          .guide-curl-right { animation: guideCurlRight 1.8s ease-in-out infinite; }
+          @keyframes guideCurlLeft { 0%,100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(18px, -28px) rotate(-28deg); } }
+          @keyframes guideCurlRight { 0%,100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-18px, -28px) rotate(28deg); } }
+        `
+      );
+    case 'squat':
+      return renderGuideScene(
+        `
+          <g class="guide-animate guide-squat-group">
+            <rect x="112" y="56" width="116" height="8" rx="4" class="guide-body"/>
+            <circle cx="170" cy="86" r="14" class="guide-body"/>
+            <path d="M170 100 170 140" class="guide-stroke"/>
+            <path d="M170 116 134 134M170 116 206 134" class="guide-stroke"/>
+            <path d="M170 140 146 176M170 140 194 176" class="guide-stroke"/>
+          </g>
+          <path d="M272 88v54m0-54-10 10m10-10 10 10m0 54-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-squat-group { animation: guideSquat 2s ease-in-out infinite; }
+          @keyframes guideSquat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(20px); } }
+        `
+      );
+    case 'hinge':
+      return renderGuideScene(
+        `
+          <g class="guide-animate guide-hinge-group">
+            <circle cx="188" cy="78" r="14" class="guide-body"/>
+            <path d="M188 92 164 138" class="guide-stroke"/>
+            <path d="M172 110 138 128M164 138 150 176M164 138 188 176" class="guide-stroke"/>
+            <rect x="122" y="132" width="54" height="10" rx="5" class="guide-accent"/>
+          </g>
+          <path d="M268 78c-20 14-28 34-28 58" class="guide-arrow"/>
+        `,
+        `
+          .guide-hinge-group { animation: guideHinge 2s ease-in-out infinite; }
+          @keyframes guideHinge { 0%,100% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(12deg) translate(-18px, 12px); } }
+        `
+      );
+    case 'leg-press':
+      return renderGuideScene(
+        `
+          <path d="M78 168 240 76" class="guide-stroke-soft"/>
+          <rect x="232" y="62" width="48" height="64" rx="10" class="guide-body-soft"/>
+          <g class="guide-animate guide-legpress-sled">
+            <rect x="222" y="54" width="62" height="72" rx="12" class="guide-accent-soft"/>
+          </g>
+          <circle cx="126" cy="138" r="14" class="guide-body"/>
+          <path d="M128 150 156 136 184 120" class="guide-stroke"/>
+          <path d="M120 150 96 178M156 136 176 170" class="guide-stroke-soft"/>
+          <path d="M286 90h-42m42 0-10-10m10 10-10 10m-42 28h42m-42 0 10-10m-10 10 10 10" class="guide-arrow"/>
+        `,
+        `
+          .guide-legpress-sled { animation: guideLegPress 1.9s ease-in-out infinite; }
+          @keyframes guideLegPress { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(-18px, 10px); } }
+        `
+      );
+    case 'lunge':
+      return renderGuideScene(
+        `
+          <g class="guide-animate guide-lunge-group">
+            <circle cx="170" cy="76" r="14" class="guide-body"/>
+            <path d="M170 90 170 132" class="guide-stroke"/>
+            <path d="M170 132 134 176M170 132 206 168" class="guide-stroke"/>
+            <path d="M170 108 146 126M170 108 194 126" class="guide-stroke-soft"/>
+          </g>
+          <path d="M274 88v56m0-56-10 10m10-10 10 10m0 56-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-lunge-group { animation: guideLunge 1.9s ease-in-out infinite; }
+          @keyframes guideLunge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
+        `
+      );
+    case 'calf-raise':
+      return renderGuideScene(
+        `
+          <g class="guide-animate guide-calf-group">
+            <circle cx="170" cy="72" r="14" class="guide-body"/>
+            <path d="M170 86 170 142" class="guide-stroke"/>
+            <path d="M170 106 148 126M170 106 192 126" class="guide-stroke-soft"/>
+            <path d="M170 142 156 180M170 142 184 180" class="guide-stroke"/>
+          </g>
+          <path d="M250 124v46m0-46-10 10m10-10 10 10m0 46-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-calf-group { animation: guideCalf 1.2s ease-in-out infinite; }
+          @keyframes guideCalf { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        `
+      );
+    case 'overhead-press':
+      return renderGuideScene(
+        `
+          <circle cx="170" cy="84" r="14" class="guide-body"/>
+          <path d="M170 98 170 150" class="guide-stroke"/>
+          <path d="M170 116 146 132M170 116 194 132" class="guide-stroke"/>
+          <path d="M170 150 154 180M170 150 186 180" class="guide-stroke-soft"/>
+          <g class="guide-animate guide-overhead-press-bar">
+            <rect x="130" y="94" width="80" height="10" rx="5" class="guide-body"/>
+          </g>
+          <path d="M270 70v56m0-56-10 10m10-10 10 10m0 56-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-overhead-press-bar { animation: guideOHP 1.8s ease-in-out infinite; }
+          @keyframes guideOHP { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+        `
+      );
+    case 'lateral-raise':
+      return renderGuideScene(
+        `
+          <circle cx="170" cy="78" r="14" class="guide-body"/>
+          <path d="M170 92 170 146" class="guide-stroke"/>
+          <path d="M170 146 154 180M170 146 186 180" class="guide-stroke-soft"/>
+          <g class="guide-animate guide-raise-left">
+            <path d="M164 110 136 132" class="guide-stroke"/>
+            <rect x="126" y="128" width="14" height="20" rx="6" class="guide-accent"/>
+          </g>
+          <g class="guide-animate guide-raise-right">
+            <path d="M176 110 204 132" class="guide-stroke"/>
+            <rect x="200" y="128" width="14" height="20" rx="6" class="guide-accent"/>
+          </g>
+          <path d="M96 110c14 8 24 22 24 22" class="guide-arrow"/>
+          <path d="M244 110c-14 8-24 22-24 22" class="guide-arrow"/>
+        `,
+        `
+          .guide-raise-left { animation: guideRaiseLeft 1.8s ease-in-out infinite; }
+          .guide-raise-right { animation: guideRaiseRight 1.8s ease-in-out infinite; }
+          @keyframes guideRaiseLeft { 0%,100% { transform: rotate(0deg) translate(0, 0); } 50% { transform: rotate(-18deg) translate(-10px, -26px); } }
+          @keyframes guideRaiseRight { 0%,100% { transform: rotate(0deg) translate(0, 0); } 50% { transform: rotate(18deg) translate(10px, -26px); } }
+        `
+      );
+    case 'dips':
+      return renderGuideScene(
+        `
+          <path d="M118 88V172M222 88V172" class="guide-stroke-soft"/>
+          <g class="guide-animate guide-dip-body">
+            <circle cx="170" cy="84" r="14" class="guide-body"/>
+            <path d="M170 98 170 148" class="guide-stroke"/>
+            <path d="M170 114 130 110M170 114 210 110" class="guide-stroke"/>
+            <path d="M170 148 154 180M170 148 186 180" class="guide-stroke-soft"/>
+          </g>
+          <path d="M270 90v50m0-50-10 10m10-10 10 10m0 50-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-dip-body { animation: guideDip 1.8s ease-in-out infinite; }
+          @keyframes guideDip { 0%,100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
+        `
+      );
+    case 'bench-press':
+    default:
+      return renderGuideScene(
+        `
+          <rect x="94" y="150" width="152" height="10" rx="5" class="guide-body-soft"/>
+          <rect x="166" y="126" width="8" height="34" rx="4" class="guide-body-soft"/>
+          <g class="guide-animate guide-bench-bar">
+            <rect x="86" y="74" width="168" height="8" rx="4" class="guide-body"/>
+            <circle cx="92" cy="78" r="16" class="guide-body-soft"/>
+            <circle cx="248" cy="78" r="16" class="guide-body-soft"/>
+          </g>
+          <circle cx="170" cy="116" r="14" class="guide-body"/>
+          <path d="M160 128 138 148M180 128 202 148" class="guide-stroke"/>
+          <path d="M170 128 170 150" class="guide-stroke-soft"/>
+          <path d="M278 82v48m0-48-10 10m10-10 10 10m0 48-10-10m10 10 10-10" class="guide-arrow"/>
+        `,
+        `
+          .guide-bench-bar { animation: guideBench 2s ease-in-out infinite; }
+          @keyframes guideBench { 0%,100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
+        `
+      );
+  }
+}
+
+function renderExerciseGuide() {
+  const plan = getPlan(state.ui.guidePlanId || state.ui.selectedPlanId || state.plans[0].id);
+  const exercise = getExercise(plan.id, state.ui.guideExerciseId) || plan.exercises[0];
+  const guide = guideDataForExercise(exercise);
+  const media = customVideoMediaForExercise(exercise);
+  const hasCustomMedia = Boolean(media?.src);
+  const customMediaMissing = Boolean(media?.missing);
+  const backScreen = state.ui.guideReturnScreen || 'workoutSession';
+  const backCopy = backScreen === 'workoutSession' ? 'Back to Workout' : 'Back';
+  const mediaMarkup = hasCustomMedia
+    ? media.type?.startsWith('image/')
+      ? `<img class="guide-player-image" src="${media.src}" alt="${escapeHtml(exercise.name)} custom guide">`
+      : `<video class="guide-player-video" src="${media.src}" controls loop muted playsinline autoplay></video>`
+    : media?.loading
+      ? `<div class="guide-loading"><span class="count-pill">Loading custom video...</span></div>`
+      : renderGuideMotion(exercise);
+  const supportCopy = hasCustomMedia
+    ? 'This uploaded guide is saved on this device for this exercise.'
+    : customMediaMissing
+      ? 'The custom video was not found on this device, so the built-in beginner guide is showing instead.'
+      : 'This built-in beginner guide is available for every user right away.';
+  return `
+    <div class="screen tight fade-up">
+      ${renderDeepHeader('Exercise Guide', backScreen, `<span class="count-pill ${hasCustomMedia ? '' : 'muted-pill'}">${hasCustomMedia ? 'Custom Video' : 'App Guide'}</span>`)}
+      <section class="card card-pad guide-hero-card">
+        <div class="section-head" style="align-items:flex-start;">
+          <div>
+            <p class="section-kicker accent">${escapeHtml(plan.name)}</p>
+            <h2 class="screen-title" style="font-size:1.8rem; margin:0.2rem 0 0.35rem;">${escapeHtml(exercise.name)}</h2>
+            <p class="screen-subtitle">${escapeHtml(guide.focus)}</p>
+          </div>
+          <span class="guide-badge">${icon('play')} Beginner View</span>
+        </div>
+        <div class="guide-player-shell">
+          ${mediaMarkup}
+        </div>
+        <div class="guide-note">
+          <strong class="list-title">Beginner tip</strong>
+          <p class="list-subtitle">${escapeHtml(guide.beginnerTip)}</p>
+          <p class="guide-support-copy">${escapeHtml(supportCopy)}</p>
+        </div>
+      </section>
+
+      <section class="guide-step-list section">
+        ${guide.steps
+          .map(
+            (step, index) => `
+              <div class="card card-pad guide-step-card">
+                <span class="guide-step-number">${index + 1}</span>
+                <div>
+                  <p class="label">Step ${index + 1}</p>
+                  <p class="list-subtitle" style="margin:0.25rem 0 0;">${escapeHtml(step)}</p>
+                </div>
+              </div>
+            `
+          )
+          .join('')}
+      </section>
+
+      <section class="card card-pad section">
+        <p class="label">Common mistakes</p>
+        <div class="guide-mistake-list">
+          ${guide.mistakes.map((mistake) => `<span class="guide-mistake-pill">${escapeHtml(mistake)}</span>`).join('')}
+        </div>
+      </section>
+
+      <div class="action-grid section">
+        <button class="secondary-button compact-button" type="button" data-action="open-edit-exercise" data-plan-id="${plan.id}" data-exercise-id="${exercise.id}">
+          ${icon('edit')} Custom Video
+        </button>
+        <button class="cta-button compact-button" type="button" data-action="open-screen" data-screen="${backScreen}">
+          ${backCopy}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function renderWorkoutSession() {
   const plan = activePlan() || getSelectedPlan();
   const workout = state.activeWorkout || createWorkoutState(plan.id);
@@ -2390,7 +3218,7 @@ function renderWorkoutSession() {
         <div style="text-align:center; flex:1;">
           <h2 class="section-title" style="font-size:1.1rem;">Workout</h2>
         </div>
-        <button class="icon-button" type="button" data-action="toast" data-message="${escapeHtml(exercise.cue)}">${icon('dots')}</button>
+        <button class="icon-button" type="button" data-action="open-exercise-guide" data-plan-id="${plan.id}" data-exercise-id="${exercise.id}" data-back-screen="workoutSession" aria-label="Open exercise guide">${icon('play')}</button>
       </div>
 
       <p class="accent" style="margin:0 0 0.45rem; font-weight:600;">${state.activeWorkout ? state.activeWorkout.exerciseIndex + 1 : 1} of ${plan.exercises.length}</p>
@@ -2408,7 +3236,7 @@ function renderWorkoutSession() {
             <div class="art-frame workout-hero">
               <img src="${exerciseImage(exercise)}" alt="">
               <div class="workout-overlay">
-                <button class="overlay-pill" type="button" data-action="toast" data-message="${escapeHtml(exercise.cue)}">${icon('bolt')}How to do</button>
+                <button class="overlay-pill" type="button" data-action="open-exercise-guide" data-plan-id="${plan.id}" data-exercise-id="${exercise.id}" data-back-screen="workoutSession">${icon('play')}${guideButtonLabel(exercise)}</button>
               </div>
             </div>
           </div>
@@ -2861,6 +3689,27 @@ function renderEditExercise() {
             </button>
           </div>
           <input class="sr-only" type="file" accept="image/*" data-input="exerciseImageFile">
+        </section>
+        <section class="card card-pad">
+          <div class="section-head" style="margin-bottom:0.7rem;">
+            <div>
+              <h3 class="section-title">Exercise Video / GIF</h3>
+              <p class="screen-subtitle helper-copy">Add a short beginner demo for this exercise. Custom videos stay on this device.</p>
+            </div>
+            <span class="count-pill ${exercise.customVideoKey ? '' : 'muted-pill'}">${exercise.customVideoKey ? 'Custom Video' : 'App Guide'}</span>
+          </div>
+          <div class="action-grid">
+            <button class="secondary-button compact-button" type="button" data-action="open-exercise-guide" data-plan-id="${plan.id}" data-exercise-id="${exercise.id}" data-back-screen="editExercise">
+              ${icon('play')} Preview Guide
+            </button>
+            <button class="secondary-button compact-button" type="button" data-action="trigger-exercise-video">
+              ${icon('upload')} Upload Video
+            </button>
+            <button class="ghost-button compact-button" type="button" data-action="reset-exercise-video">
+              ${icon('trash')} Use App Guide
+            </button>
+          </div>
+          <input class="sr-only" type="file" accept="video/*,image/gif" data-input="exerciseVideoFile">
         </section>
         <div class="set-editor">
           <div class="set-editor-head">
@@ -3801,6 +4650,11 @@ root.addEventListener('click', (event) => {
     return;
   }
 
+  if (action === 'open-exercise-guide') {
+    openExerciseGuide(target.dataset.planId, target.dataset.exerciseId, target.dataset.backScreen || state.ui.screen);
+    return;
+  }
+
   if (action === 'toggle-password-visibility') {
     const input = root.querySelector(`#${target.dataset.target}`);
     if (!input) {
@@ -4007,6 +4861,14 @@ root.addEventListener('click', (event) => {
     return;
   }
 
+  if (action === 'trigger-exercise-video') {
+    const fileInput = root.querySelector('[data-input="exerciseVideoFile"]');
+    if (fileInput) {
+      fileInput.click();
+    }
+    return;
+  }
+
   if (action === 'reset-exercise-image') {
     const exercise = getExercise(state.ui.editingPlanId, state.ui.editingExerciseId);
     if (!exercise) {
@@ -4021,6 +4883,11 @@ root.addEventListener('click', (event) => {
     persistState();
     showToast('Exercise photo reset');
     renderApp();
+    return;
+  }
+
+  if (action === 'reset-exercise-video') {
+    resetExerciseCustomVideo();
     return;
   }
 
@@ -4144,6 +5011,14 @@ root.addEventListener('change', (event) => {
     const [file] = control.files || [];
     if (file) {
       saveExerciseCustomImage(file);
+    }
+    control.value = '';
+    return;
+  }
+  if (control.dataset.input === 'exerciseVideoFile') {
+    const [file] = control.files || [];
+    if (file) {
+      saveExerciseCustomVideo(file);
     }
     control.value = '';
     return;
