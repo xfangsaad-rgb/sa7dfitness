@@ -1,14 +1,15 @@
-const CACHE_NAME = 'sa7d-fitness-v4';
+const CACHE_NAME = 'sa7d-fitness-v5';
 const APP_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=6',
-  './app.js?v=6',
-  './manifest.webmanifest?v=6',
-  './icons/app-logo.png?v=6',
-  './icons/icon-192.png?v=6',
-  './icons/icon-512.png?v=6',
-  './icons/apple-touch-icon.png?v=6'
+  './styles.css?v=7',
+  './identity-client.js?v=7',
+  './app.js?v=7',
+  './manifest.webmanifest?v=7',
+  './icons/app-logo.png?v=7',
+  './icons/icon-192.png?v=7',
+  './icons/icon-512.png?v=7',
+  './icons/apple-touch-icon.png?v=7'
 ];
 
 self.addEventListener('install', (event) => {

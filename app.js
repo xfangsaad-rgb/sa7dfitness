@@ -36,6 +36,7 @@ const MAIN_NAV = {
 const GOALS = ['Bulking', 'Cutting', 'Maintain'];
 const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced'];
 const CATEGORIES = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+const CLOUD_SYNC_DELAY = 1800;
 
 const ICONS = {
   menu:
@@ -93,7 +94,11 @@ const ICONS = {
   chat:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7.5h12a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H11l-4.2 3v-3H6a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>',
   download:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v9M8.5 10.5 12 14l3.5-3.5M5 18.5h14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>'
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v9M8.5 10.5 12 14l3.5-3.5M5 18.5h14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>',
+  upload:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5v-9M8.5 13.5 12 10l3.5 3.5M5 5.5h14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>',
+  cloud:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 18h9.2a3.3 3.3 0 0 0 .3-6.6 5.4 5.4 0 0 0-10.4-1.3A3.6 3.6 0 0 0 7.5 18Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>'
 };
 
 function svgToUri(svg) {
@@ -881,6 +886,16 @@ function createDefaultState() {
       ],
       streak: 0
     },
+    meta: {
+      dataUpdatedAt: new Date().toISOString()
+    },
+    cloud: {
+      autoSync: true,
+      lastSyncedAt: '',
+      lastRemoteUpdatedAt: '',
+      lastError: '',
+      lastSyncStatus: 'local'
+    },
     activeWorkout: null,
     ui: {
       screen: 'home',
@@ -914,6 +929,72 @@ function isLegacyDemoState(value) {
   );
 }
 
+function isValidStateShape(value) {
+  return Boolean(value && Array.isArray(value.plans) && value.profile);
+}
+
+function buildCloudState(source = state) {
+  return {
+    profile: source.profile,
+    preferences: source.preferences,
+    plans: source.plans,
+    schedule: source.schedule,
+    history: source.history,
+    notifications: source.notifications,
+    messages: source.messages,
+    challenges: source.challenges,
+    metrics: source.metrics,
+    activeWorkout: source.activeWorkout,
+    meta: {
+      dataUpdatedAt: source.meta?.dataUpdatedAt || new Date().toISOString()
+    }
+  };
+}
+
+function fingerprintCloudState(source = state) {
+  const cloudState = buildCloudState(source);
+  delete cloudState.meta;
+  return JSON.stringify(cloudState);
+}
+
+function normalizeState(value, { preserveUi = false } = {}) {
+  const fallback = createDefaultState();
+  if (!isValidStateShape(value)) {
+    return fallback;
+  }
+
+  const normalized = {
+    ...fallback,
+    ...value,
+    profile: { ...fallback.profile, ...value.profile },
+    preferences: { ...fallback.preferences, ...value.preferences },
+    metrics: { ...fallback.metrics, ...value.metrics },
+    notifications: Array.isArray(value.notifications) ? value.notifications : fallback.notifications,
+    messages: Array.isArray(value.messages) ? value.messages : fallback.messages,
+    challenges: Array.isArray(value.challenges) ? value.challenges : fallback.challenges,
+    meta: {
+      ...fallback.meta,
+      ...value.meta,
+      dataUpdatedAt: value.meta?.dataUpdatedAt || fallback.meta.dataUpdatedAt
+    },
+    cloud: {
+      ...fallback.cloud,
+      ...value.cloud,
+      lastError: '',
+      lastSyncStatus: value.cloud?.lastSyncStatus || 'local'
+    },
+    ui: {
+      ...fallback.ui,
+      ...value.ui,
+      toast: '',
+      screen: preserveUi ? value.ui?.screen || fallback.ui.screen : 'home',
+      drawerOpen: false
+    }
+  };
+
+  return normalized;
+}
+
 function loadState() {
   const fallback = createDefaultState();
   try {
@@ -928,31 +1009,26 @@ function loadState() {
     if (isLegacyDemoState(parsed)) {
       return fallback;
     }
-    return {
-      ...fallback,
-      ...parsed,
-      profile: { ...fallback.profile, ...parsed.profile },
-      preferences: { ...fallback.preferences, ...parsed.preferences },
-      metrics: { ...fallback.metrics, ...parsed.metrics },
-      notifications: Array.isArray(parsed.notifications) ? parsed.notifications : fallback.notifications,
-      messages: Array.isArray(parsed.messages) ? parsed.messages : fallback.messages,
-      challenges: Array.isArray(parsed.challenges) ? parsed.challenges : fallback.challenges,
-      ui: {
-        ...fallback.ui,
-        ...parsed.ui,
-        toast: '',
-        screen: 'home',
-        drawerOpen: false
-      }
-    };
+    return normalizeState(parsed);
   } catch {
     return fallback;
   }
 }
 
-function persistState() {
+function persistState({ scheduleCloud = true } = {}) {
   try {
+    const nextFingerprint = fingerprintCloudState(state);
+    const dataChanged = nextFingerprint !== lastLocalFingerprint;
+    if (dataChanged) {
+      state.meta.dataUpdatedAt = new Date().toISOString();
+      state.cloud.lastSyncStatus = authUser && state.cloud.autoSync ? 'pending' : state.cloud.lastSyncStatus;
+      state.cloud.lastError = '';
+      lastLocalFingerprint = nextFingerprint;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (scheduleCloud && dataChanged) {
+      scheduleCloudSync();
+    }
     return true;
   } catch (error) {
     console.error(error);
@@ -966,7 +1042,379 @@ let toastTimer = null;
 let restTimer = null;
 let pendingScrollReset = true;
 let deferredInstallPrompt = null;
+let authUser = null;
+let authReady = false;
+let authBusy = false;
+let authMessage = '';
+let cloudSyncTimer = null;
+let cloudSyncInFlight = null;
+let lastLocalFingerprint = fingerprintCloudState(state);
+let lastCloudFingerprint = state.cloud.lastSyncedAt ? lastLocalFingerprint : '';
 const root = document.getElementById('app');
+
+function getIdentityClient() {
+  return window.SA7DIdentity || null;
+}
+
+function isCloudAvailable() {
+  const identity = getIdentityClient();
+  return Boolean(identity?.getIdentityConfig?.());
+}
+
+function isCloudLoggedIn() {
+  return Boolean(authUser);
+}
+
+function userDisplayName(user) {
+  return user?.name || user?.email || 'Cloud User';
+}
+
+function cloudStatusCopy() {
+  if (!isCloudAvailable()) {
+    return 'Turn on Netlify Identity for this site to let users log in and keep their data across devices.';
+  }
+  if (!authReady) {
+    return 'Checking your cloud session...';
+  }
+  if (!authUser) {
+    return 'Log in to back up workouts, profile changes, and progress across devices.';
+  }
+  if (state.cloud.lastSyncStatus === 'error' && state.cloud.lastError) {
+    return state.cloud.lastError;
+  }
+  if (state.cloud.lastSyncStatus === 'pending') {
+    return 'Local changes are ready and will sync to the cloud shortly.';
+  }
+  if (state.cloud.lastSyncStatus === 'syncing') {
+    return 'Syncing your latest changes to the cloud...';
+  }
+  if (state.cloud.lastSyncedAt) {
+    return `Last cloud sync: ${formatCloudTime(state.cloud.lastSyncedAt)}`;
+  }
+  return 'Cloud account connected. The first backup will run after your next change.';
+}
+
+function formatCloudTime(value) {
+  if (!value) {
+    return 'never';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'just now';
+  }
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+async function fetchCloudRecord() {
+  const response = await fetch('/.netlify/functions/cloud-state', {
+    headers: {
+      Accept: 'application/json'
+    },
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new Error('Cloud session expired. Please log in again.');
+  }
+
+  if (!response.ok) {
+    throw new Error('Cloud save is not ready yet on the server.');
+  }
+
+  return response.json();
+}
+
+function applyCloudState(nextState, message) {
+  const restored = normalizeState(nextState, { preserveUi: true });
+  restored.ui = {
+    ...restored.ui,
+    ...state.ui,
+    screen: state.ui.screen,
+    drawerOpen: false,
+    toast: state.ui.toast
+  };
+  restored.cloud = {
+    ...restored.cloud,
+    ...state.cloud,
+    lastError: '',
+    lastSyncStatus: 'synced',
+    lastSyncedAt: restored.meta.dataUpdatedAt,
+    lastRemoteUpdatedAt: restored.meta.dataUpdatedAt
+  };
+  state = restored;
+  lastLocalFingerprint = fingerprintCloudState(state);
+  lastCloudFingerprint = lastLocalFingerprint;
+  persistState({ scheduleCloud: false });
+  if (message) {
+    showToast(message);
+  }
+  renderApp();
+}
+
+async function saveCloudState({ silent = false, force = false } = {}) {
+  if (!authUser || !isCloudAvailable()) {
+    return false;
+  }
+
+  const fingerprint = fingerprintCloudState(state);
+  if (!force && fingerprint === lastCloudFingerprint) {
+    return true;
+  }
+
+  if (cloudSyncInFlight) {
+    return cloudSyncInFlight;
+  }
+
+  state.cloud.lastSyncStatus = 'syncing';
+  state.cloud.lastError = '';
+  if (!silent) {
+    renderApp();
+  }
+
+  const payload = buildCloudState(state);
+
+  cloudSyncInFlight = fetch('/.netlify/functions/cloud-state', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+    .then(async (response) => {
+      if (response.status === 401) {
+        throw new Error('Cloud session expired. Please log in again.');
+      }
+      if (!response.ok) {
+        throw new Error('Could not save to the cloud right now.');
+      }
+      const result = await response.json();
+      lastCloudFingerprint = fingerprint;
+      state.cloud.lastSyncedAt = payload.meta.dataUpdatedAt;
+      state.cloud.lastRemoteUpdatedAt = result.updatedAt || payload.meta.dataUpdatedAt;
+      state.cloud.lastSyncStatus = 'synced';
+      state.cloud.lastError = '';
+      persistState({ scheduleCloud: false });
+      if (!silent) {
+        showToast('Cloud backup updated');
+        renderApp();
+      }
+      return true;
+    })
+    .catch((error) => {
+      console.error(error);
+      state.cloud.lastSyncStatus = 'error';
+      state.cloud.lastError = error.message || 'Cloud sync failed';
+      persistState({ scheduleCloud: false });
+      if (!silent) {
+        showToast(state.cloud.lastError);
+        renderApp();
+      }
+      return false;
+    })
+    .finally(() => {
+      cloudSyncInFlight = null;
+    });
+
+  return cloudSyncInFlight;
+}
+
+function scheduleCloudSync() {
+  if (!authReady || !authUser || !state.cloud.autoSync || !isCloudAvailable()) {
+    return;
+  }
+
+  if (cloudSyncTimer) {
+    clearTimeout(cloudSyncTimer);
+  }
+
+  cloudSyncTimer = setTimeout(() => {
+    cloudSyncTimer = null;
+    saveCloudState({ silent: true });
+  }, CLOUD_SYNC_DELAY);
+}
+
+async function syncCloudAfterLogin() {
+  try {
+    const record = await fetchCloudRecord();
+    const cloudState = record?.state;
+    if (cloudState && isValidStateShape(cloudState)) {
+      const cloudStamp = Date.parse(cloudState.meta?.dataUpdatedAt || '') || 0;
+      const localStamp = Date.parse(state.meta?.dataUpdatedAt || '') || 0;
+      if (cloudStamp > localStamp) {
+        applyCloudState(cloudState, 'Cloud backup loaded');
+        return;
+      }
+    }
+
+    state.cloud.lastSyncStatus = 'local';
+    state.cloud.lastError = '';
+    persistState({ scheduleCloud: false });
+    await saveCloudState({ silent: true, force: true });
+    showToast(cloudState ? 'Local changes pushed to cloud' : 'Cloud account ready');
+    renderApp();
+  } catch (error) {
+    console.error(error);
+    state.cloud.lastSyncStatus = 'error';
+    state.cloud.lastError = error.message || 'Cloud login worked, but sync failed.';
+    persistState({ scheduleCloud: false });
+    showToast(state.cloud.lastError);
+    renderApp();
+  }
+}
+
+async function restoreCloudState() {
+  try {
+    const record = await fetchCloudRecord();
+    if (!record?.state || !isValidStateShape(record.state)) {
+      showToast('No cloud backup found yet');
+      return;
+    }
+    applyCloudState(record.state, 'Cloud backup restored');
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || 'Could not load cloud backup');
+  }
+}
+
+async function loginToCloud(email, password) {
+  const identity = getIdentityClient();
+  if (!identity) {
+    showToast('Cloud save is only available on the deployed Netlify site.');
+    return;
+  }
+
+  authBusy = true;
+  authMessage = '';
+  renderApp();
+
+  try {
+    await identity.login(email, password);
+    authUser = await identity.getUser();
+    await syncCloudAfterLogin();
+  } catch (error) {
+    console.error(error);
+    authMessage = error.message || 'Login failed';
+    showToast(authMessage);
+    renderApp();
+  } finally {
+    authBusy = false;
+    renderApp();
+  }
+}
+
+async function signupForCloud(name, email, password) {
+  const identity = getIdentityClient();
+  if (!identity) {
+    showToast('Cloud save is only available on the deployed Netlify site.');
+    return;
+  }
+
+  authBusy = true;
+  authMessage = '';
+  renderApp();
+
+  try {
+    await identity.signup(email, password, {
+      full_name: name || email.split('@')[0]
+    });
+    await identity.hydrateSession();
+    authUser = await identity.getUser();
+    if (!authUser) {
+      authMessage = 'Account created. Check your email and confirm before logging in.';
+      showToast(authMessage);
+      return;
+    }
+    await syncCloudAfterLogin();
+  } catch (error) {
+    console.error(error);
+    authMessage = error.message || 'Sign up failed';
+    showToast(authMessage);
+  } finally {
+    authBusy = false;
+    renderApp();
+  }
+}
+
+async function logoutFromCloud() {
+  const identity = getIdentityClient();
+  if (!identity) {
+    return;
+  }
+
+  authBusy = true;
+  renderApp();
+
+  try {
+    await identity.logout();
+    authUser = null;
+    authMessage = '';
+    if (cloudSyncTimer) {
+      clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = null;
+    }
+    state.cloud.lastSyncStatus = 'local';
+    state.cloud.lastError = '';
+    persistState({ scheduleCloud: false });
+    showToast('Signed out of cloud save');
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || 'Cloud logout failed');
+  } finally {
+    authBusy = false;
+    renderApp();
+  }
+}
+
+async function initCloudAuth() {
+  const identity = getIdentityClient();
+  authReady = false;
+
+  if (!identity || !identity.getIdentityConfig?.()) {
+    authReady = true;
+    renderApp();
+    return;
+  }
+
+  try {
+    const callback = await identity.handleAuthCallback();
+    await identity.hydrateSession();
+    authUser = await identity.getUser();
+    identity.onAuthChange(async (event, user) => {
+      authUser = user;
+      if (user && event === identity.AUTH_EVENTS?.LOGIN && !authBusy) {
+        await syncCloudAfterLogin();
+        return;
+      }
+      if (!user) {
+        state.cloud.lastSyncStatus = 'local';
+        state.cloud.lastError = '';
+        persistState({ scheduleCloud: false });
+      }
+      renderApp();
+    });
+
+    if (callback?.type === 'confirmation' && authUser) {
+      await syncCloudAfterLogin();
+      return;
+    }
+
+    if (authUser) {
+      state.cloud.lastError = '';
+      persistState({ scheduleCloud: false });
+    }
+  } catch (error) {
+    console.error(error);
+    authMessage = error.message || 'Cloud sign-in callback failed.';
+  } finally {
+    authReady = true;
+    renderApp();
+  }
+}
 
 function getPlan(planId) {
   return state.plans.find((plan) => plan.id === planId) || state.plans[0];
@@ -2583,6 +3031,7 @@ function renderSettings() {
   return `
     <div class="screen tight fade-up">
       ${renderDeepHeader('Settings', 'profile')}
+      ${renderCloudSettings()}
       <section class="card card-pad">
         <div class="list">
           ${
@@ -2629,6 +3078,93 @@ function renderSettings() {
         <button class="danger-button" type="button" data-action="reset-demo">${icon('logout')} Reset For New User</button>
       </div>
     </div>
+  `;
+}
+
+function renderCloudSettings() {
+  if (!isCloudAvailable()) {
+    return `
+      <section class="card card-pad">
+        <div class="cloud-head">
+          <span class="status-dot cloud-status-icon">${icon('cloud')}</span>
+          <div class="cloud-copy">
+            <p class="section-kicker accent">Cloud Save</p>
+            <h3 class="section-title">Login + Backup</h3>
+            <p class="helper-copy muted">Enable Netlify Identity in your Netlify project first, then users can create accounts and sync their workouts across devices.</p>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  if (!authUser) {
+    return `
+      <section class="card card-pad">
+        <div class="cloud-head">
+          <span class="status-dot cloud-status-icon">${icon('cloud')}</span>
+          <div class="cloud-copy">
+            <p class="section-kicker accent">Cloud Save</p>
+            <h3 class="section-title">Log In To Save Online</h3>
+            <p class="helper-copy muted">${escapeHtml(cloudStatusCopy())}</p>
+          </div>
+        </div>
+        <form class="form section" data-form="cloud-auth">
+          <div class="form-grid-2">
+            <label>
+              <span class="field-label">Full Name</span>
+              <input class="input-field" type="text" name="name" placeholder="SA7D User" ${authBusy ? 'disabled' : ''}>
+            </label>
+            <label>
+              <span class="field-label">Email</span>
+              <input class="input-field" type="email" name="email" placeholder="you@example.com" required ${authBusy || !authReady ? 'disabled' : ''}>
+            </label>
+          </div>
+          <label>
+            <span class="field-label">Password</span>
+            <input class="input-field" type="password" name="password" placeholder="At least 6 characters" minlength="6" required ${authBusy || !authReady ? 'disabled' : ''}>
+          </label>
+          ${authMessage ? `<p class="helper-copy cloud-error">${escapeHtml(authMessage)}</p>` : ''}
+          <div class="action-grid">
+            <button class="secondary-button compact-button" type="submit" name="mode" value="login" ${authBusy || !authReady ? 'disabled' : ''}>${authBusy ? 'Please wait...' : 'Log In'}</button>
+            <button class="cta-button compact-button" type="submit" name="mode" value="signup" ${authBusy || !authReady ? 'disabled' : ''}>Create Account</button>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="card card-pad">
+      <div class="cloud-head">
+        <span class="status-dot cloud-status-icon">${icon('cloud')}</span>
+        <div class="cloud-copy">
+          <p class="section-kicker accent">Cloud Save</p>
+          <h3 class="section-title">${escapeHtml(userDisplayName(authUser))}</h3>
+          <p class="helper-copy muted">${escapeHtml(authUser.email || 'Signed in')}</p>
+        </div>
+      </div>
+      <div class="cloud-note section">
+        <strong class="list-title">Sync Status</strong>
+        <p class="list-subtitle">${escapeHtml(cloudStatusCopy())}</p>
+      </div>
+      <div class="section">
+        <button class="menu-item" type="button" data-action="toggle-cloud-sync">
+          <span class="status-dot">${icon('upload')}</span>
+          <span style="text-align:left;">
+            <strong class="list-title">Auto Sync</strong>
+            <span class="list-subtitle">${state.cloud.autoSync ? 'On for this account' : 'Paused for this account'}</span>
+          </span>
+          <span class="switch ${state.cloud.autoSync ? 'active' : ''}"></span>
+        </button>
+      </div>
+      <div class="action-grid section">
+        <button class="secondary-button compact-button" type="button" data-action="cloud-load" ${authBusy ? 'disabled' : ''}>Load Cloud Backup</button>
+        <button class="cta-button compact-button" type="button" data-action="cloud-save" ${authBusy ? 'disabled' : ''}>Save To Cloud</button>
+      </div>
+      <div class="section">
+        <button class="ghost-button compact-button" type="button" data-action="cloud-logout" ${authBusy ? 'disabled' : ''}>Log Out Of Cloud Save</button>
+      </div>
+    </section>
   `;
 }
 
@@ -2922,6 +3458,40 @@ root.addEventListener('click', (event) => {
     return;
   }
 
+  if (action === 'toggle-cloud-sync') {
+    state.cloud.autoSync = !state.cloud.autoSync;
+    if (!state.cloud.autoSync && cloudSyncTimer) {
+      clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = null;
+    }
+    if (state.cloud.autoSync && authUser) {
+      state.cloud.lastSyncStatus = 'pending';
+      state.cloud.lastError = '';
+    }
+    persistState({ scheduleCloud: false });
+    if (state.cloud.autoSync && authUser) {
+      saveCloudState({ silent: true });
+    }
+    showToast(`Cloud auto sync ${state.cloud.autoSync ? 'enabled' : 'paused'}`);
+    renderApp();
+    return;
+  }
+
+  if (action === 'cloud-save') {
+    saveCloudState({ force: true });
+    return;
+  }
+
+  if (action === 'cloud-load') {
+    restoreCloudState();
+    return;
+  }
+
+  if (action === 'cloud-logout') {
+    logoutFromCloud();
+    return;
+  }
+
   if (action === 'open-edit-exercise') {
     state.ui.editingPlanId = target.dataset.planId;
     state.ui.editingExerciseId = target.dataset.exerciseId;
@@ -3113,6 +3683,26 @@ root.addEventListener('submit', (event) => {
   const form = event.target;
   const data = new FormData(form);
 
+  if (form.dataset.form === 'cloud-auth') {
+    const name = data.get('name')?.toString().trim() || '';
+    const email = data.get('email')?.toString().trim() || '';
+    const password = data.get('password')?.toString() || '';
+    const mode = event.submitter?.value || 'login';
+
+    if (!email || !password) {
+      showToast('Enter email and password first');
+      return;
+    }
+
+    if (mode === 'signup') {
+      signupForCloud(name, email, password);
+      return;
+    }
+
+    loginToCloud(email, password);
+    return;
+  }
+
   if (form.dataset.form === 'profile') {
     state.profile.name = data.get('name').toString().trim();
     state.profile.age = Number(data.get('age'));
@@ -3163,6 +3753,7 @@ root.addEventListener('submit', (event) => {
 });
 
 renderApp();
+initCloudAuth();
 
 if ('serviceWorker' in navigator) {
   let reloadingForServiceWorker = false;
@@ -3177,7 +3768,7 @@ if ('serviceWorker' in navigator) {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('./sw.js?v=4', { updateViaCache: 'none' })
+      .register('./sw.js?v=5', { updateViaCache: 'none' })
       .then((registration) => {
         if (registration.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });

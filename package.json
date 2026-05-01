@@ -1,0 +1,19 @@
+{
+  "name": "sa7dfitness",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:identity",
+    "build:identity": "esbuild src/identity-client.entry.js --bundle --format=iife --platform=browser --target=es2020 --global-name=SA7DIdentityModule --outfile=identity-client.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "@netlify/identity": "^0.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.11"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
