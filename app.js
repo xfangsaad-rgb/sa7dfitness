@@ -1455,19 +1455,6 @@ function syncRestTimer() {
   }
 }
 
-function renderStatusBar() {
-  return `
-    <div class="status-bar">
-      <span>9:41</span>
-      <div class="status-icons">
-        <span class="status-pill"></span>
-        <span class="status-pill" style="width:0.7rem;"></span>
-        <span class="status-battery"></span>
-      </div>
-    </div>
-  `;
-}
-
 function renderNav() {
   const active = MAIN_NAV[state.ui.screen] || 'home';
   const item = (screen, label, iconName, target) => `
@@ -2735,7 +2722,6 @@ function renderApp(shouldPersist = false) {
   const navVisible = !DEEP_SCREENS.has(state.ui.screen);
   root.innerHTML = `
     <div class="app-viewport">
-      ${renderStatusBar()}
       <div class="screen-scroll">
         ${renderScreen()}
       </div>
