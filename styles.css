@@ -102,20 +102,6 @@ img {
   background: rgba(236, 72, 153, 0.16);
 }
 
-.site-shell {
-  position: relative;
-  z-index: 1;
-  min-height: 100dvh;
-  padding: 1rem;
-}
-
-.web-app-shell {
-  width: min(100%, 1380px);
-  height: calc(100dvh - 2rem);
-  margin: 0 auto;
-  border-radius: 34px;
-}
-
 .desktop-shell {
   position: relative;
   z-index: 1;
@@ -1517,16 +1503,6 @@ img {
     overflow: auto;
   }
 
-  .site-shell {
-    padding: 0.8rem;
-  }
-
-  .web-app-shell {
-    width: 100%;
-    height: calc(100dvh - 1.6rem);
-    border-radius: 28px;
-  }
-
   .desktop-shell {
     grid-template-columns: 1fr;
     gap: 1.5rem;
@@ -1548,17 +1524,6 @@ img {
 }
 
 @media (max-width: 520px) {
-  .site-shell {
-    padding: 0;
-  }
-
-  .web-app-shell {
-    height: 100dvh;
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
-  }
-
   .grid-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1577,5 +1542,42 @@ img {
 
   .stats-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (display-mode: standalone) {
+  .desktop-shell {
+    display: block;
+    min-height: 100dvh;
+    padding: 0;
+  }
+
+  .intro-panel {
+    display: none;
+  }
+
+  .phone-stage {
+    display: block;
+  }
+
+  .phone-frame {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    aspect-ratio: auto;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .phone-notch {
+    display: none;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
   }
 }
