@@ -1136,6 +1136,13 @@ img {
   color: #718094;
 }
 
+.textarea-field {
+  min-height: 6.75rem;
+  resize: vertical;
+  padding-top: 0.9rem;
+  line-height: 1.5;
+}
+
 .chart-wrap {
   display: block;
   width: 100%;

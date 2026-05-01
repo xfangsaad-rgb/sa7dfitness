@@ -4,6 +4,7 @@ const DEEP_SCREENS = new Set([
   'editProfile',
   'editPlan',
   'editExercise',
+  'customExercise',
   'exerciseGuide',
   'library',
   'history',
@@ -30,6 +31,7 @@ const MAIN_NAV = {
   editProfile: 'profile',
   editPlan: 'workout',
   editExercise: 'workout',
+  customExercise: 'workout',
   exerciseGuide: 'workout',
   library: 'workout',
   history: 'profile',
@@ -697,6 +699,22 @@ function planImage(plan) {
   return CATEGORY_PHOTOS[plan?.art] || ART[plan?.art] || CATEGORY_PHOTOS.bench;
 }
 
+function artForCategory(category) {
+  switch (category) {
+    case 'Chest':
+      return 'bench';
+    case 'Back':
+      return 'back';
+    case 'Legs':
+      return 'legs';
+    case 'Shoulders':
+    case 'Arms':
+    case 'Core':
+    default:
+      return 'torso';
+  }
+}
+
 function guideDataForExercise(exercise) {
   const key = exercise?.libId || exercise?.id;
   if (BEGINNER_GUIDES[key]) {
@@ -849,6 +867,31 @@ function buildExercise(baseId, setRows) {
     customVideoName: '',
     customVideoType: '',
     sets: buildSets(setRows.map((set) => ({ ...set, prefix: baseId })))
+  };
+}
+
+function buildCustomExercise({
+  name = 'Custom Exercise',
+  category = 'Chest',
+  cue = 'Move slowly, stay controlled, and keep your form clean on every rep.',
+  setRows = [
+    { reps: 12, weight: 0 },
+    { reps: 12, weight: 0 },
+    { reps: 12, weight: 0 }
+  ]
+} = {}) {
+  return {
+    id: `custom-${Math.random().toString(36).slice(2, 10)}`,
+    libId: '',
+    name,
+    category,
+    art: artForCategory(category),
+    cue,
+    customImage: '',
+    customVideoKey: '',
+    customVideoName: '',
+    customVideoType: '',
+    sets: buildSets(setRows.map((set) => ({ ...set, prefix: 'custom' })))
   };
 }
 
@@ -1145,6 +1188,7 @@ function createDefaultState() {
       screen: 'home',
       selectedDate: today,
       selectedPlanId: schedule[today] || plans[0].id,
+      customExercisePlanId: schedule[today] || plans[0].id,
       guidePlanId: plans[0].id,
       guideExerciseId: plans[0].exercises[0]?.id || '',
       guideReturnScreen: 'workoutPlan',
@@ -2354,10 +2398,38 @@ function addExerciseToPlan(libraryId) {
     { reps: 12, weight: 25 }
   ]);
   plan.exercises.push(newExercise);
+  if (state.activeWorkout && state.activeWorkout.planId === plan.id) {
+    state.activeWorkout.completedSets[newExercise.id] = newExercise.sets.map(() => false);
+  }
   state.ui.editingExerciseId = newExercise.id;
   state.ui.screen = 'editExercise';
   requestScrollReset();
   showToast('Exercise added to plan');
+  persistState();
+  renderApp();
+}
+
+function addCustomExerciseToPlan({ name, category, cue, sets, reps, weight }) {
+  const plan = getPlan(state.ui.editingPlanId || state.ui.selectedPlanId);
+  const newExercise = buildCustomExercise({
+    name,
+    category,
+    cue,
+    setRows: Array.from({ length: Math.max(1, sets) }, () => ({
+      reps: Math.max(1, reps),
+      weight: Math.max(0, weight)
+    }))
+  });
+  plan.exercises.push(newExercise);
+  if (state.activeWorkout && state.activeWorkout.planId === plan.id) {
+    state.activeWorkout.completedSets[newExercise.id] = newExercise.sets.map(() => false);
+  }
+  state.ui.selectedPlanId = plan.id;
+  state.ui.editingPlanId = plan.id;
+  state.ui.editingExerciseId = newExercise.id;
+  state.ui.screen = 'editExercise';
+  requestScrollReset();
+  showToast('Custom exercise added to this day');
   persistState();
   renderApp();
 }
@@ -2575,6 +2647,8 @@ function renderScreen() {
       return renderEditPlan();
     case 'editExercise':
       return renderEditExercise();
+    case 'customExercise':
+      return renderCustomExercise();
     case 'exerciseGuide':
       return renderExerciseGuide();
     case 'library':
@@ -2790,6 +2864,15 @@ function renderWorkoutPlan() {
           })
           .join('')}
       </section>
+
+      <div class="action-grid section">
+        <button class="secondary-button compact-button" type="button" data-action="open-screen" data-screen="library">
+          ${icon('plus')} Add From Library
+        </button>
+        <button class="cta-button compact-button" type="button" data-action="open-screen" data-screen="customExercise">
+          ${icon('edit')} Custom Exercise
+        </button>
+      </div>
 
       <div class="section">
         <button class="cta-button" type="button" data-action="${canResumePlan ? 'resume-workout' : 'start-workout'}" data-plan-id="${plan.id}">
@@ -3698,7 +3781,7 @@ function renderEditExercise() {
           <img src="${exerciseImage(exercise)}" alt="">
         </div>
         <div>
-          <p class="label">Live Coaching Cue</p>
+          <p class="label">Current Coaching Cue</p>
           <p class="screen-subtitle" style="margin-top:0.25rem;">${escapeHtml(exercise.cue)}</p>
         </div>
       </div>
@@ -3714,6 +3797,10 @@ function renderEditExercise() {
           <select class="select-field" name="category">
             ${CATEGORIES.filter((item) => item !== 'All').map((value) => `<option ${value === exercise.category ? 'selected' : ''}>${value}</option>`).join('')}
           </select>
+        </label>
+        <label>
+          <span class="field-label">How To Do / Cue</span>
+          <textarea class="input-field textarea-field" name="cue" rows="4" required>${escapeHtml(exercise.cue)}</textarea>
         </label>
         <section class="card card-pad">
           <div class="section-head" style="margin-bottom:0.7rem;">
@@ -3792,6 +3879,18 @@ function renderLibrary() {
   return `
     <div class="screen tight fade-up">
       ${renderDeepHeader('Exercise Library', 'workoutPlan')}
+      <section class="card card-pad section">
+        <div class="section-head" style="margin-bottom:0.8rem;">
+          <div>
+            <h3 class="section-title">Need more exercises today?</h3>
+            <p class="screen-subtitle helper-copy">Create your own custom movement and add it to the selected workout day.</p>
+          </div>
+          <span class="count-pill">${getSelectedPlan().exercises.length}</span>
+        </div>
+        <button class="cta-button compact-button" type="button" data-action="open-screen" data-screen="customExercise">
+          ${icon('plus')} Create Custom Exercise
+        </button>
+      </section>
       <div class="search-row">
         <label>
           <span class="sr-only">Search exercises</span>
@@ -3826,6 +3925,50 @@ function renderLibrary() {
           )
           .join('') || '<div class="card empty-state">No exercises match this filter.</div>'}
       </section>
+    </div>
+  `;
+}
+
+function renderCustomExercise() {
+  const plan = getPlan(state.ui.customExercisePlanId || state.ui.selectedPlanId || state.plans[0].id);
+  return `
+    <div class="screen tight fade-up">
+      ${renderDeepHeader('Custom Exercise', 'library', `<button class="linkish" type="submit" form="custom-exercise-form">Add</button>`)}
+      <section class="card card-pad section">
+        <p class="section-kicker accent">Selected Day</p>
+        <h2 class="screen-title" style="font-size:1.55rem; margin:0.25rem 0 0.35rem;">${escapeHtml(plan.name)}</h2>
+        <p class="screen-subtitle">Add a new custom exercise to ${escapeHtml(formatShortDate(state.ui.selectedDate))}. You can add as many exercises as you need for one day.</p>
+      </section>
+      <form class="form" id="custom-exercise-form" data-form="custom-exercise">
+        <label>
+          <span class="field-label">Exercise Name</span>
+          <input class="input-field" name="name" value="Custom Exercise" required>
+        </label>
+        <label>
+          <span class="field-label">Category</span>
+          <select class="select-field" name="category">
+            ${CATEGORIES.filter((item) => item !== 'All').map((value) => `<option ${value === 'Chest' ? 'selected' : ''}>${value}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <span class="field-label">How To Do / Cue</span>
+          <textarea class="input-field textarea-field" name="cue" rows="4" required>Move slowly, stay controlled, and keep your form clean on every rep.</textarea>
+        </label>
+        <div class="grid-3">
+          <label>
+            <span class="field-label">Sets</span>
+            <input class="input-field" type="number" name="sets" min="1" max="12" value="3" required>
+          </label>
+          <label>
+            <span class="field-label">Reps</span>
+            <input class="input-field" type="number" name="reps" min="1" value="12" required>
+          </label>
+          <label>
+            <span class="field-label">Weight (kg)</span>
+            <input class="input-field" type="number" step="0.5" name="weight" min="0" value="0" required>
+          </label>
+        </div>
+      </form>
     </div>
   `;
 }
@@ -4662,6 +4805,10 @@ function openScreen(screen) {
   if (screen === 'library') {
     state.ui.editingPlanId = state.ui.selectedPlanId || todayPlan().id;
   }
+  if (screen === 'customExercise') {
+    state.ui.customExercisePlanId = state.ui.selectedPlanId || todayPlan().id;
+    state.ui.editingPlanId = state.ui.customExercisePlanId;
+  }
   if (screen === 'calendar') {
     state.ui.selectedCalendarDate = state.ui.selectedCalendarDate || state.ui.selectedDate;
   }
@@ -5181,6 +5328,8 @@ root.addEventListener('submit', (event) => {
     const exercise = getExercise(state.ui.editingPlanId, data.get('exerciseId').toString());
     exercise.name = data.get('name').toString().trim();
     exercise.category = data.get('category').toString();
+    exercise.art = artForCategory(exercise.category);
+    exercise.cue = data.get('cue').toString().trim();
     const repValues = data.getAll('setReps').map(Number);
     const weightValues = data.getAll('setWeight').map(Number);
     exercise.sets = repValues.map((reps, index) => ({
@@ -5193,6 +5342,18 @@ root.addEventListener('submit', (event) => {
     persistState();
     showToast('Exercise saved');
     renderApp();
+    return;
+  }
+
+  if (form.dataset.form === 'custom-exercise') {
+    addCustomExerciseToPlan({
+      name: data.get('name').toString().trim(),
+      category: data.get('category').toString(),
+      cue: data.get('cue').toString().trim(),
+      sets: Number(data.get('sets')) || 3,
+      reps: Number(data.get('reps')) || 12,
+      weight: Number(data.get('weight')) || 0
+    });
   }
 });
 
