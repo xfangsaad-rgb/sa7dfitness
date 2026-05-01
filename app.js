@@ -3159,7 +3159,7 @@ if ('serviceWorker' in navigator) {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('./sw.js', { updateViaCache: 'none' })
+      .register('./sw.js?v=3', { updateViaCache: 'none' })
       .then((registration) => {
         if (registration.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
