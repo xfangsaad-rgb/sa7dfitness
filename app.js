@@ -1456,16 +1456,27 @@ async function signupForCloud(name, email, password) {
   renderApp();
 
   try {
-    await identity.signup(email, password, {
-      full_name: name || email.split('@')[0]
+    const response = await fetch('/.netlify/functions/auth-signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password
+      })
     });
-    await identity.hydrateSession();
-    authUser = await identity.getUser();
-    if (!authUser) {
-      authMessage = 'Account created. Check your email and confirm before logging in.';
-      showToast(authMessage);
-      return;
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const error = new Error(payload.error || `Sign up failed (${response.status})`);
+      error.status = response.status;
+      throw error;
     }
+
+    await identity.login(email, password);
+    authUser = await identity.getUser();
     await syncCloudAfterLogin();
     enterAppAfterAuth();
   } catch (error) {
@@ -3516,13 +3527,7 @@ function renderAuthSignup() {
             <input type="checkbox" name="terms" value="yes" ${authBusy || !authReady ? 'disabled' : ''} required>
             <span>I agree to the <strong>Terms &amp; Conditions</strong></span>
           </label>
-          ${
-            authSettings?.disableSignup
-              ? '<p class="auth-hint auth-hint-warning">Sign up is currently turned off in Netlify Identity for this site.</p>'
-              : authSettings && !authSettings.autoconfirm
-                ? '<p class="auth-hint">After sign up, check your email and confirm your account before logging in.</p>'
-                : ''
-          }
+          <p class="auth-hint">Your account will be created and signed in right away.</p>
           ${renderAuthNotice()}
           <button class="cta-button" type="submit" ${authBusy || !authReady ? 'disabled' : ''}>${authBusy ? 'Please wait...' : 'Sign Up'}</button>
         </form>
