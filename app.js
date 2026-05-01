@@ -10,6 +10,12 @@ const DEEP_SCREENS = new Set([
   'nutrition',
   'achievements',
   'settings',
+  'authIntro',
+  'authLogin',
+  'authSignup',
+  'authForgot',
+  'authReset',
+  'cloudLogout',
   'notifications',
   'messages',
   'challenges'
@@ -29,6 +35,12 @@ const MAIN_NAV = {
   nutrition: 'profile',
   achievements: 'profile',
   settings: 'profile',
+  authIntro: 'profile',
+  authLogin: 'profile',
+  authSignup: 'profile',
+  authForgot: 'profile',
+  authReset: 'profile',
+  cloudLogout: 'profile',
   notifications: 'home',
   messages: 'profile',
   challenges: 'profile'
@@ -98,7 +110,13 @@ const ICONS = {
   upload:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5v-9M8.5 13.5 12 10l3.5 3.5M5 5.5h14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>',
   cloud:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 18h9.2a3.3 3.3 0 0 0 .3-6.6 5.4 5.4 0 0 0-10.4-1.3A3.6 3.6 0 0 0 7.5 18Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>'
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 18h9.2a3.3 3.3 0 0 0 .3-6.6 5.4 5.4 0 0 0-10.4-1.3A3.6 3.6 0 0 0 7.5 18Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>',
+  mail:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7.5h15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15V9a1.5 1.5 0 0 1 1.5-1.5Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m5 8.5 7 5 7-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/></svg>',
+  lock:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 10.5V8.7A3.5 3.5 0 0 1 12 5.2a3.5 3.5 0 0 1 3.5 3.5v1.8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"/></svg>',
+  eye:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12s3-5 8.5-5 8.5 5 8.5 5-3 5-8.5 5-8.5-5-8.5-5Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/><circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>'
 };
 
 function svgToUri(svg) {
@@ -1110,6 +1128,20 @@ function formatCloudTime(value) {
   });
 }
 
+function validatePasswordRules(password) {
+  const value = String(password || '');
+  return {
+    minLength: value.length >= 8,
+    uppercase: /[A-Z]/.test(value),
+    lowercase: /[a-z]/.test(value),
+    special: /[^A-Za-z0-9]/.test(value)
+  };
+}
+
+function isStrongPassword(password) {
+  return Object.values(validatePasswordRules(password)).every(Boolean);
+}
+
 async function fetchCloudRecord() {
   const response = await fetch('/.netlify/functions/cloud-state', {
     headers: {
@@ -1281,6 +1313,64 @@ async function restoreCloudState() {
   }
 }
 
+async function sendCloudResetLink(email) {
+  const identity = getIdentityClient();
+  if (!identity) {
+    showToast('Cloud save is only available on the deployed Netlify site.');
+    return;
+  }
+
+  authBusy = true;
+  authMessage = '';
+  renderApp();
+
+  try {
+    await identity.requestPasswordRecovery(email);
+    authMessage = 'Reset link sent. Check your email to continue.';
+    showToast(authMessage);
+  } catch (error) {
+    console.error(error);
+    authMessage = error.message || 'Could not send reset link';
+    showToast(authMessage);
+  } finally {
+    authBusy = false;
+    renderApp();
+  }
+}
+
+async function resetCloudPassword(password) {
+  const identity = getIdentityClient();
+  if (!identity || !authUser) {
+    authMessage = 'Open the password reset link from your email first.';
+    renderApp();
+    return;
+  }
+
+  authBusy = true;
+  authMessage = '';
+  renderApp();
+
+  try {
+    await identity.updateUser({ password });
+    await identity.logout();
+    authUser = null;
+    state.cloud.lastSyncStatus = 'local';
+    state.cloud.lastError = '';
+    authMessage = '';
+    state.ui.screen = 'authLogin';
+    requestScrollReset();
+    persistState({ scheduleCloud: false });
+    showToast('Password updated. You can log in now.');
+  } catch (error) {
+    console.error(error);
+    authMessage = error.message || 'Could not reset password';
+    showToast(authMessage);
+  } finally {
+    authBusy = false;
+    renderApp();
+  }
+}
+
 async function loginToCloud(email, password) {
   const identity = getIdentityClient();
   if (!identity) {
@@ -1296,6 +1386,8 @@ async function loginToCloud(email, password) {
     await identity.login(email, password);
     authUser = await identity.getUser();
     await syncCloudAfterLogin();
+    state.ui.screen = 'settings';
+    requestScrollReset();
   } catch (error) {
     console.error(error);
     authMessage = error.message || 'Login failed';
@@ -1330,6 +1422,8 @@ async function signupForCloud(name, email, password) {
       return;
     }
     await syncCloudAfterLogin();
+    state.ui.screen = 'settings';
+    requestScrollReset();
   } catch (error) {
     console.error(error);
     authMessage = error.message || 'Sign up failed';
@@ -1359,6 +1453,8 @@ async function logoutFromCloud() {
     }
     state.cloud.lastSyncStatus = 'local';
     state.cloud.lastError = '';
+    state.ui.screen = 'settings';
+    requestScrollReset();
     persistState({ scheduleCloud: false });
     showToast('Signed out of cloud save');
   } catch (error) {
@@ -1397,6 +1493,14 @@ async function initCloudAuth() {
       }
       renderApp();
     });
+
+    if (callback?.type === 'recovery') {
+      state.ui.screen = 'authReset';
+      requestScrollReset();
+      authMessage = 'Create a new password for your cloud account.';
+      renderApp();
+      return;
+    }
 
     if (callback?.type === 'confirmation' && authUser) {
       await syncCloudAfterLogin();
@@ -1968,6 +2072,18 @@ function renderScreen() {
       return renderAchievements();
     case 'settings':
       return renderSettings();
+    case 'authIntro':
+      return renderAuthIntro();
+    case 'authLogin':
+      return renderAuthLogin();
+    case 'authSignup':
+      return renderAuthSignup();
+    case 'authForgot':
+      return renderAuthForgot();
+    case 'authReset':
+      return renderAuthReset();
+    case 'cloudLogout':
+      return renderCloudLogout();
     case 'notifications':
       return renderNotifications();
     case 'messages':
@@ -3099,36 +3215,19 @@ function renderCloudSettings() {
 
   if (!authUser) {
     return `
-      <section class="card card-pad">
-        <div class="cloud-head">
-          <span class="status-dot cloud-status-icon">${icon('cloud')}</span>
-          <div class="cloud-copy">
-            <p class="section-kicker accent">Cloud Save</p>
-            <h3 class="section-title">Log In To Save Online</h3>
-            <p class="helper-copy muted">${escapeHtml(cloudStatusCopy())}</p>
-          </div>
+      <section class="card card-pad auth-preview-card">
+        <div class="auth-preview-media">
+          <img class="auth-preview-logo" src="icons/app-logo.png" alt="SA7D">
         </div>
-        <form class="form section" data-form="cloud-auth">
-          <div class="form-grid-2">
-            <label>
-              <span class="field-label">Full Name</span>
-              <input class="input-field" type="text" name="name" placeholder="SA7D User" ${authBusy ? 'disabled' : ''}>
-            </label>
-            <label>
-              <span class="field-label">Email</span>
-              <input class="input-field" type="email" name="email" placeholder="you@example.com" required ${authBusy || !authReady ? 'disabled' : ''}>
-            </label>
-          </div>
-          <label>
-            <span class="field-label">Password</span>
-            <input class="input-field" type="password" name="password" placeholder="At least 6 characters" minlength="6" required ${authBusy || !authReady ? 'disabled' : ''}>
-          </label>
-          ${authMessage ? `<p class="helper-copy cloud-error">${escapeHtml(authMessage)}</p>` : ''}
-          <div class="action-grid">
-            <button class="secondary-button compact-button" type="submit" name="mode" value="login" ${authBusy || !authReady ? 'disabled' : ''}>${authBusy ? 'Please wait...' : 'Log In'}</button>
-            <button class="cta-button compact-button" type="submit" name="mode" value="signup" ${authBusy || !authReady ? 'disabled' : ''}>Create Account</button>
-          </div>
-        </form>
+        <div class="auth-preview-copy">
+          <p class="section-kicker accent">Cloud Save</p>
+          <h3 class="section-title">Login System</h3>
+          <p class="helper-copy muted">${escapeHtml(cloudStatusCopy())}</p>
+        </div>
+        <div class="section action-grid">
+          <button class="cta-button compact-button" type="button" data-action="open-screen" data-screen="authIntro">Get Started</button>
+          <button class="secondary-button compact-button" type="button" data-action="open-screen" data-screen="authLogin">Log In</button>
+        </div>
       </section>
     `;
   }
@@ -3162,9 +3261,274 @@ function renderCloudSettings() {
         <button class="cta-button compact-button" type="button" data-action="cloud-save" ${authBusy ? 'disabled' : ''}>Save To Cloud</button>
       </div>
       <div class="section">
-        <button class="ghost-button compact-button" type="button" data-action="cloud-logout" ${authBusy ? 'disabled' : ''}>Log Out Of Cloud Save</button>
+        <button class="ghost-button compact-button" type="button" data-action="open-screen" data-screen="cloudLogout" ${authBusy ? 'disabled' : ''}>Log Out Of Cloud Save</button>
       </div>
     </section>
+  `;
+}
+
+function renderAuthTopBar(backScreen, title = '') {
+  return `
+    <div class="auth-topbar">
+      <button class="icon-button" type="button" data-action="open-screen" data-screen="${backScreen}">${icon('back')}</button>
+      <div class="auth-topbar-title">${title ? `<h2 class="section-title">${title}</h2>` : ''}</div>
+      <div class="auth-topbar-spacer"></div>
+    </div>
+  `;
+}
+
+function renderPasswordToggle(targetId) {
+  return `
+    <button class="auth-visibility-button" type="button" data-action="toggle-password-visibility" data-target="${targetId}" aria-label="Show or hide password">
+      ${icon('eye')}
+    </button>
+  `;
+}
+
+function renderAuthInput({ label, name, type = 'text', placeholder, iconName, id, autocomplete = 'off', extra = '', disabled = false }) {
+  return `
+    <label class="auth-field">
+      <span class="auth-field-label">${label}</span>
+      <span class="auth-input-shell">
+        <span class="auth-input-icon">${icon(iconName)}</span>
+        <input class="auth-input" id="${id}" name="${name}" type="${type}" placeholder="${placeholder}" autocomplete="${autocomplete}" ${disabled ? 'disabled' : ''} required>
+        ${extra}
+      </span>
+    </label>
+  `;
+}
+
+function renderPasswordChecklist(password = '') {
+  const rules = validatePasswordRules(password);
+  const item = (rule, label) => `
+    <li class="auth-checklist-item ${rules[rule] ? 'valid' : ''}" data-rule="${rule}">
+      <span class="auth-check-indicator">${rules[rule] ? icon('check') : ''}</span>
+      <span>${label}</span>
+    </li>
+  `;
+  return `
+    <ul class="auth-checklist">
+      ${item('minLength', 'At least 8 characters')}
+      ${item('uppercase', 'One uppercase letter')}
+      ${item('lowercase', 'One lowercase letter')}
+      ${item('special', 'One special character')}
+    </ul>
+  `;
+}
+
+function renderAuthNotice() {
+  if (!authMessage) {
+    return '';
+  }
+  return `<p class="auth-notice">${escapeHtml(authMessage)}</p>`;
+}
+
+function renderAuthIntro() {
+  return `
+    <div class="screen auth-screen auth-screen-intro fade-up">
+      ${renderAuthTopBar('settings')}
+      <div class="auth-splash">
+        <img class="auth-splash-logo" src="icons/app-logo.png" alt="SA7D">
+        <div class="auth-wordmark">SA7D</div>
+        <p class="auth-tagline">Train Smart. Stay Consistent.<br>Be Your Best.</p>
+      </div>
+      <div class="auth-actions-stack">
+        <button class="cta-button" type="button" data-action="open-screen" data-screen="authSignup">Get Started</button>
+        <button class="secondary-button" type="button" data-action="open-screen" data-screen="authLogin">Log In</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderAuthLogin() {
+  return `
+    <div class="screen auth-screen fade-up">
+      ${renderAuthTopBar('authIntro')}
+      <section class="auth-panel">
+        <h2 class="auth-title">Welcome Back!</h2>
+        <p class="auth-subtitle">Log in to continue your fitness journey</p>
+        <form class="form auth-form" data-form="cloud-login">
+          ${renderAuthInput({
+            label: 'Email',
+            name: 'email',
+            type: 'email',
+            placeholder: 'Enter your email',
+            iconName: 'mail',
+            id: 'cloud-login-email',
+            autocomplete: 'email',
+            disabled: authBusy || !authReady
+          })}
+          ${renderAuthInput({
+            label: 'Password',
+            name: 'password',
+            type: 'password',
+            placeholder: 'Enter your password',
+            iconName: 'lock',
+            id: 'cloud-login-password',
+            autocomplete: 'current-password',
+            extra: renderPasswordToggle('cloud-login-password'),
+            disabled: authBusy || !authReady
+          })}
+          <div class="auth-inline-end">
+            <button class="auth-text-button" type="button" data-action="open-screen" data-screen="authForgot">Forgot Password?</button>
+          </div>
+          ${renderAuthNotice()}
+          <button class="cta-button" type="submit" ${authBusy || !authReady ? 'disabled' : ''}>${authBusy ? 'Please wait...' : 'Log In'}</button>
+        </form>
+        <p class="auth-footer-copy">Don't have an account? <button class="auth-text-button" type="button" data-action="open-screen" data-screen="authSignup">Sign Up</button></p>
+      </section>
+    </div>
+  `;
+}
+
+function renderAuthSignup() {
+  return `
+    <div class="screen auth-screen fade-up">
+      ${renderAuthTopBar('authIntro')}
+      <section class="auth-panel">
+        <h2 class="auth-title">Create Account</h2>
+        <p class="auth-subtitle">Join SA7D and start your journey</p>
+        <form class="form auth-form" data-form="cloud-signup">
+          ${renderAuthInput({
+            label: 'Full Name',
+            name: 'name',
+            type: 'text',
+            placeholder: 'Enter your full name',
+            iconName: 'user',
+            id: 'cloud-signup-name',
+            autocomplete: 'name',
+            disabled: authBusy || !authReady
+          })}
+          ${renderAuthInput({
+            label: 'Email',
+            name: 'email',
+            type: 'email',
+            placeholder: 'Enter your email',
+            iconName: 'mail',
+            id: 'cloud-signup-email',
+            autocomplete: 'email',
+            disabled: authBusy || !authReady
+          })}
+          ${renderAuthInput({
+            label: 'Password',
+            name: 'password',
+            type: 'password',
+            placeholder: 'Create a password',
+            iconName: 'lock',
+            id: 'cloud-signup-password',
+            autocomplete: 'new-password',
+            extra: renderPasswordToggle('cloud-signup-password'),
+            disabled: authBusy || !authReady
+          })}
+          ${renderAuthInput({
+            label: 'Confirm Password',
+            name: 'confirmPassword',
+            type: 'password',
+            placeholder: 'Confirm your password',
+            iconName: 'lock',
+            id: 'cloud-signup-confirm',
+            autocomplete: 'new-password',
+            extra: renderPasswordToggle('cloud-signup-confirm'),
+            disabled: authBusy || !authReady
+          })}
+          <label class="auth-checkbox">
+            <input type="checkbox" name="terms" value="yes" ${authBusy || !authReady ? 'disabled' : ''} required>
+            <span>I agree to the <strong>Terms &amp; Conditions</strong></span>
+          </label>
+          ${renderAuthNotice()}
+          <button class="cta-button" type="submit" ${authBusy || !authReady ? 'disabled' : ''}>${authBusy ? 'Please wait...' : 'Sign Up'}</button>
+        </form>
+        <p class="auth-footer-copy">Already have an account? <button class="auth-text-button" type="button" data-action="open-screen" data-screen="authLogin">Log In</button></p>
+      </section>
+    </div>
+  `;
+}
+
+function renderAuthForgot() {
+  return `
+    <div class="screen auth-screen auth-center-screen fade-up">
+      ${renderAuthTopBar('authLogin')}
+      <section class="auth-panel auth-panel-centered">
+        <div class="auth-orb">${icon('lock')}</div>
+        <h2 class="auth-title">Forgot Password</h2>
+        <p class="auth-subtitle">Enter your email and we'll send you a link to reset your password.</p>
+        <form class="form auth-form" data-form="cloud-forgot">
+          ${renderAuthInput({
+            label: 'Email',
+            name: 'email',
+            type: 'email',
+            placeholder: 'Enter your email',
+            iconName: 'mail',
+            id: 'cloud-forgot-email',
+            autocomplete: 'email',
+            disabled: authBusy || !authReady
+          })}
+          ${renderAuthNotice()}
+          <button class="cta-button" type="submit" ${authBusy || !authReady ? 'disabled' : ''}>${authBusy ? 'Sending...' : 'Send Reset Link'}</button>
+        </form>
+        <button class="auth-text-button auth-bottom-link" type="button" data-action="open-screen" data-screen="authLogin">Back to Log In</button>
+      </section>
+    </div>
+  `;
+}
+
+function renderAuthReset() {
+  const canReset = Boolean(authUser);
+  return `
+    <div class="screen auth-screen fade-up">
+      ${renderAuthTopBar('authLogin')}
+      <section class="auth-panel">
+        <h2 class="auth-title">Reset Password</h2>
+        <p class="auth-subtitle">${canReset ? 'Create a new password for your cloud account.' : 'Open the reset link from your email to continue.'}</p>
+        <form class="form auth-form" data-form="cloud-reset">
+          ${renderAuthInput({
+            label: 'New Password',
+            name: 'password',
+            type: 'password',
+            placeholder: 'Enter new password',
+            iconName: 'lock',
+            id: 'cloud-reset-password',
+            autocomplete: 'new-password',
+            extra: renderPasswordToggle('cloud-reset-password'),
+            disabled: authBusy || !canReset
+          })}
+          <div data-live="password-checklist">
+            ${renderPasswordChecklist()}
+          </div>
+          ${renderAuthInput({
+            label: 'Confirm Password',
+            name: 'confirmPassword',
+            type: 'password',
+            placeholder: 'Confirm new password',
+            iconName: 'lock',
+            id: 'cloud-reset-confirm',
+            autocomplete: 'new-password',
+            extra: renderPasswordToggle('cloud-reset-confirm'),
+            disabled: authBusy || !canReset
+          })}
+          ${renderAuthNotice()}
+          <button class="cta-button" type="submit" ${authBusy || !canReset ? 'disabled' : ''}>${authBusy ? 'Updating...' : 'Reset Password'}</button>
+        </form>
+        <button class="auth-text-button auth-bottom-link" type="button" data-action="open-screen" data-screen="authLogin">Back to Log In</button>
+      </section>
+    </div>
+  `;
+}
+
+function renderCloudLogout() {
+  return `
+    <div class="screen auth-screen auth-center-screen fade-up">
+      ${renderAuthTopBar('settings', 'Log Out')}
+      <section class="auth-panel auth-panel-centered">
+        <div class="auth-orb auth-orb-danger">${icon('logout')}</div>
+        <h2 class="auth-title">Are you sure you want to log out?</h2>
+        <p class="auth-subtitle">${escapeHtml(authUser?.email || 'Your cloud account will stay safe. You can log in again any time.')}</p>
+        <div class="auth-actions-stack">
+          <button class="danger-button" type="button" data-action="cloud-logout" ${authBusy ? 'disabled' : ''}>${authBusy ? 'Please wait...' : 'Log Out'}</button>
+          <button class="secondary-button" type="button" data-action="open-screen" data-screen="settings">Cancel</button>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -3300,6 +3664,9 @@ function renderApp(shouldPersist = false) {
 function openScreen(screen) {
   state.ui.drawerOpen = false;
   state.ui.screen = screen;
+  if (screen.startsWith('auth') || screen === 'cloudLogout') {
+    authMessage = '';
+  }
   requestScrollReset();
   if (screen === 'workoutPlan' || screen === 'workoutSession') {
     state.ui.selectedPlanId = state.ui.selectedPlanId || todayPlan().id;
@@ -3338,6 +3705,16 @@ root.addEventListener('click', (event) => {
 
   if (action === 'open-screen') {
     openScreen(target.dataset.screen);
+    return;
+  }
+
+  if (action === 'toggle-password-visibility') {
+    const input = root.querySelector(`#${target.dataset.target}`);
+    if (!input) {
+      return;
+    }
+    input.type = input.type === 'password' ? 'text' : 'password';
+    target.classList.toggle('active', input.type === 'text');
     return;
   }
 
@@ -3654,6 +4031,13 @@ root.addEventListener('input', (event) => {
     }
     return;
   }
+  if (control.id === 'cloud-reset-password') {
+    const checklist = root.querySelector('[data-live="password-checklist"]');
+    if (checklist) {
+      checklist.innerHTML = renderPasswordChecklist(control.value);
+    }
+    return;
+  }
   if (control.dataset.input === 'historyFilter') {
     state.ui.historyFilter = control.value;
     persistState();
@@ -3683,23 +4067,72 @@ root.addEventListener('submit', (event) => {
   const form = event.target;
   const data = new FormData(form);
 
-  if (form.dataset.form === 'cloud-auth') {
-    const name = data.get('name')?.toString().trim() || '';
+  if (form.dataset.form === 'cloud-login') {
     const email = data.get('email')?.toString().trim() || '';
     const password = data.get('password')?.toString() || '';
-    const mode = event.submitter?.value || 'login';
-
     if (!email || !password) {
       showToast('Enter email and password first');
       return;
     }
+    loginToCloud(email, password);
+    return;
+  }
 
-    if (mode === 'signup') {
-      signupForCloud(name, email, password);
+  if (form.dataset.form === 'cloud-signup') {
+    const name = data.get('name')?.toString().trim() || '';
+    const email = data.get('email')?.toString().trim() || '';
+    const password = data.get('password')?.toString() || '';
+    const confirmPassword = data.get('confirmPassword')?.toString() || '';
+    const termsAccepted = data.get('terms') === 'yes';
+
+    if (!name || !email || !password || !confirmPassword) {
+      showToast('Fill in all sign up fields');
       return;
     }
+    if (password !== confirmPassword) {
+      authMessage = 'Passwords do not match.';
+      renderApp();
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      authMessage = 'Use a stronger password with uppercase, lowercase, and a special character.';
+      renderApp();
+      return;
+    }
+    if (!termsAccepted) {
+      authMessage = 'Please accept the terms to continue.';
+      renderApp();
+      return;
+    }
+    signupForCloud(name, email, password);
+    return;
+  }
 
-    loginToCloud(email, password);
+  if (form.dataset.form === 'cloud-forgot') {
+    const email = data.get('email')?.toString().trim() || '';
+    if (!email) {
+      showToast('Enter your email first');
+      return;
+    }
+    sendCloudResetLink(email);
+    return;
+  }
+
+  if (form.dataset.form === 'cloud-reset') {
+    const password = data.get('password')?.toString() || '';
+    const confirmPassword = data.get('confirmPassword')?.toString() || '';
+
+    if (password !== confirmPassword) {
+      authMessage = 'Passwords do not match.';
+      renderApp();
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      authMessage = 'Use a stronger password before saving.';
+      renderApp();
+      return;
+    }
+    resetCloudPassword(password);
     return;
   }
 

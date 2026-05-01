@@ -1108,6 +1108,38 @@ var SA7DIdentityModule = (() => {
     }
     return getIdentityContext();
   };
+  var resolveCurrentUser = async () => {
+    const client = getClient();
+    let currentUser2 = client.currentUser();
+    if (!currentUser2 && isBrowser2()) {
+      try {
+        await hydrateSession();
+      } catch {
+      }
+      currentUser2 = client.currentUser();
+    }
+    if (!currentUser2) throw new AuthError("No user is currently logged in");
+    return currentUser2;
+  };
+  var requestPasswordRecovery = async (email) => {
+    const client = getClient();
+    try {
+      await client.requestPasswordRecovery(email);
+    } catch (error) {
+      throw AuthError.from(error);
+    }
+  };
+  var updateUser = async (updates) => {
+    const currentUser2 = await resolveCurrentUser();
+    try {
+      const updatedUser = await currentUser2.update(updates);
+      const user = toUser(updatedUser);
+      emitAuthEvent(AUTH_EVENTS.USER_UPDATED, user);
+      return user;
+    } catch (error) {
+      throw AuthError.from(error);
+    }
+  };
 
   // src/identity-client.entry.js
   window.SA7DIdentity = {
@@ -1119,6 +1151,8 @@ var SA7DIdentityModule = (() => {
     login,
     logout,
     onAuthChange,
-    signup
+    requestPasswordRecovery,
+    signup,
+    updateUser
   };
 })();

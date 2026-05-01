@@ -7,7 +7,9 @@ import {
   login,
   logout,
   onAuthChange,
-  signup
+  requestPasswordRecovery,
+  signup,
+  updateUser
 } from '@netlify/identity'
 
 window.SA7DIdentity = {
@@ -19,5 +21,7 @@ window.SA7DIdentity = {
   login,
   logout,
   onAuthChange,
-  signup
+  requestPasswordRecovery,
+  signup,
+  updateUser
 }
