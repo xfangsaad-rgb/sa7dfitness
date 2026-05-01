@@ -1,15 +1,34 @@
-const CACHE_NAME = 'sa7d-fitness-v5';
+const CACHE_NAME = 'sa7d-fitness-v8';
 const APP_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=7',
-  './identity-client.js?v=7',
-  './app.js?v=7',
-  './manifest.webmanifest?v=7',
-  './icons/app-logo.png?v=7',
-  './icons/icon-192.png?v=7',
-  './icons/icon-512.png?v=7',
-  './icons/apple-touch-icon.png?v=7'
+  './styles.css?v=8',
+  './identity-client.js?v=8',
+  './app.js?v=8',
+  './manifest.webmanifest?v=8',
+  './icons/app-logo.png?v=8',
+  './icons/icon-192.png?v=8',
+  './icons/icon-512.png?v=8',
+  './icons/apple-touch-icon.png?v=8',
+  './guides/bench-press.gif?v=8',
+  './guides/incline-press.gif?v=8',
+  './guides/dumbbell-fly.gif?v=8',
+  './guides/push-up.gif?v=8',
+  './guides/pushdown.gif?v=8',
+  './guides/overhead-extension.gif?v=8',
+  './guides/pulldown.gif?v=8',
+  './guides/row.gif?v=8',
+  './guides/single-row.gif?v=8',
+  './guides/curl.gif?v=8',
+  './guides/squat.gif?v=8',
+  './guides/hinge.gif?v=8',
+  './guides/leg-press.gif?v=8',
+  './guides/lunge.gif?v=8',
+  './guides/calf-raise.gif?v=8',
+  './guides/overhead-press.gif?v=8',
+  './guides/lateral-raise.gif?v=8',
+  './guides/face-pull.gif?v=8',
+  './guides/dips.gif?v=8'
 ];
 
 self.addEventListener('install', (event) => {

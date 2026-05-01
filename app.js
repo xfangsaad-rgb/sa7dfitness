@@ -655,6 +655,28 @@ const BEGINNER_GUIDES = {
   )
 };
 
+const GUIDE_MEDIA = {
+  'bench-press': './guides/bench-press.gif?v=8',
+  'incline-press': './guides/incline-press.gif?v=8',
+  'dumbbell-fly': './guides/dumbbell-fly.gif?v=8',
+  'push-up': './guides/push-up.gif?v=8',
+  pushdown: './guides/pushdown.gif?v=8',
+  'overhead-extension': './guides/overhead-extension.gif?v=8',
+  pulldown: './guides/pulldown.gif?v=8',
+  row: './guides/row.gif?v=8',
+  'single-row': './guides/single-row.gif?v=8',
+  curl: './guides/curl.gif?v=8',
+  squat: './guides/squat.gif?v=8',
+  hinge: './guides/hinge.gif?v=8',
+  'leg-press': './guides/leg-press.gif?v=8',
+  lunge: './guides/lunge.gif?v=8',
+  'calf-raise': './guides/calf-raise.gif?v=8',
+  'overhead-press': './guides/overhead-press.gif?v=8',
+  'lateral-raise': './guides/lateral-raise.gif?v=8',
+  'face-pull': './guides/face-pull.gif?v=8',
+  dips: './guides/dips.gif?v=8'
+};
+
 function icon(name) {
   return `<span class="icon">${ICONS[name] || ''}</span>`;
 }
@@ -689,8 +711,24 @@ function guideDataForExercise(exercise) {
   );
 }
 
+function builtInGuideMediaForExercise(exercise) {
+  const motion = guideDataForExercise(exercise).motion;
+  const src = GUIDE_MEDIA[motion];
+  if (!src) {
+    return null;
+  }
+  return {
+    src,
+    type: 'image/gif',
+    label: 'App Demo'
+  };
+}
+
 function guideButtonLabel(exercise) {
-  return exercise?.customVideoKey ? 'Watch Video' : 'How to do';
+  if (exercise?.customVideoKey) {
+    return 'Watch Video';
+  }
+  return builtInGuideMediaForExercise(exercise) ? 'Watch Demo' : 'How to do';
 }
 
 function clone(value) {
@@ -3130,6 +3168,7 @@ function renderExerciseGuide() {
   const exercise = getExercise(plan.id, state.ui.guideExerciseId) || plan.exercises[0];
   const guide = guideDataForExercise(exercise);
   const media = customVideoMediaForExercise(exercise);
+  const builtInMedia = builtInGuideMediaForExercise(exercise);
   const hasCustomMedia = Boolean(media?.src);
   const customMediaMissing = Boolean(media?.missing);
   const backScreen = state.ui.guideReturnScreen || 'workoutSession';
@@ -3140,15 +3179,19 @@ function renderExerciseGuide() {
       : `<video class="guide-player-video" src="${media.src}" controls loop muted playsinline autoplay></video>`
     : media?.loading
       ? `<div class="guide-loading"><span class="count-pill">Loading custom video...</span></div>`
-      : renderGuideMotion(exercise);
+      : builtInMedia
+        ? `<img class="guide-player-image" src="${builtInMedia.src}" alt="${escapeHtml(exercise.name)} beginner demo GIF">`
+        : renderGuideMotion(exercise);
   const supportCopy = hasCustomMedia
     ? 'This uploaded guide is saved on this device for this exercise.'
     : customMediaMissing
       ? 'The custom video was not found on this device, so the built-in beginner guide is showing instead.'
-      : 'This built-in beginner guide is available for every user right away.';
+      : builtInMedia
+        ? 'This built-in beginner demo is available for every user right away.'
+        : 'This built-in beginner guide is available for every user right away.';
   return `
     <div class="screen tight fade-up">
-      ${renderDeepHeader('Exercise Guide', backScreen, `<span class="count-pill ${hasCustomMedia ? '' : 'muted-pill'}">${hasCustomMedia ? 'Custom Video' : 'App Guide'}</span>`)}
+      ${renderDeepHeader('Exercise Guide', backScreen, `<span class="count-pill ${hasCustomMedia ? '' : 'muted-pill'}">${hasCustomMedia ? 'Custom Video' : builtInMedia ? 'App Demo' : 'App Guide'}</span>`)}
       <section class="card card-pad guide-hero-card">
         <div class="section-head" style="align-items:flex-start;">
           <div>
@@ -3696,7 +3739,7 @@ function renderEditExercise() {
               <h3 class="section-title">Exercise Video / GIF</h3>
               <p class="screen-subtitle helper-copy">Add a short beginner demo for this exercise. Custom videos stay on this device.</p>
             </div>
-            <span class="count-pill ${exercise.customVideoKey ? '' : 'muted-pill'}">${exercise.customVideoKey ? 'Custom Video' : 'App Guide'}</span>
+            <span class="count-pill ${exercise.customVideoKey ? '' : 'muted-pill'}">${exercise.customVideoKey ? 'Custom Video' : builtInGuideMediaForExercise(exercise) ? 'App Demo' : 'App Guide'}</span>
           </div>
           <div class="action-grid">
             <button class="secondary-button compact-button" type="button" data-action="open-exercise-guide" data-plan-id="${plan.id}" data-exercise-id="${exercise.id}" data-back-screen="editExercise">
@@ -5169,7 +5212,7 @@ if ('serviceWorker' in navigator) {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('./sw.js?v=5', { updateViaCache: 'none' })
+      .register('./sw.js?v=8', { updateViaCache: 'none' })
       .then((registration) => {
         if (registration.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
