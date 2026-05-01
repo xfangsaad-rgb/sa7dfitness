@@ -1,6 +1,7 @@
 import {
   AUTH_EVENTS,
   getIdentityConfig,
+  getSettings,
   getUser,
   handleAuthCallback,
   hydrateSession,
@@ -15,6 +16,7 @@ import {
 window.SA7DIdentity = {
   AUTH_EVENTS,
   getIdentityConfig,
+  getSettings,
   getUser,
   handleAuthCallback,
   hydrateSession,

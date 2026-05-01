@@ -1439,6 +1439,17 @@ img {
   line-height: 1.5;
 }
 
+.auth-hint {
+  margin: -0.1rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.auth-hint-warning {
+  color: #ffb4c4;
+}
+
 .auth-orb {
   display: inline-flex;
   align-items: center;

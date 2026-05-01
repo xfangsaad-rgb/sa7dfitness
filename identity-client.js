@@ -1108,6 +1108,28 @@ var SA7DIdentityModule = (() => {
     }
     return getIdentityContext();
   };
+  var getSettings = async () => {
+    const client = getClient();
+    try {
+      const raw = await client.settings();
+      const external = raw.external ?? {};
+      return {
+        autoconfirm: raw.autoconfirm,
+        disableSignup: raw.disable_signup,
+        providers: {
+          google: external.google ?? false,
+          github: external.github ?? false,
+          gitlab: external.gitlab ?? false,
+          bitbucket: external.bitbucket ?? false,
+          facebook: external.facebook ?? false,
+          email: external.email ?? false,
+          saml: external.saml ?? false
+        }
+      };
+    } catch (err) {
+      throw new AuthError(err instanceof Error ? err.message : "Failed to fetch identity settings", 502, { cause: err });
+    }
+  };
   var resolveCurrentUser = async () => {
     const client = getClient();
     let currentUser2 = client.currentUser();
@@ -1145,6 +1167,7 @@ var SA7DIdentityModule = (() => {
   window.SA7DIdentity = {
     AUTH_EVENTS,
     getIdentityConfig,
+    getSettings,
     getUser,
     handleAuthCallback,
     hydrateSession,

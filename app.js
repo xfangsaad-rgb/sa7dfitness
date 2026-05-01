@@ -1064,6 +1064,7 @@ let authUser = null;
 let authReady = false;
 let authBusy = false;
 let authMessage = '';
+let authSettings = null;
 let cloudSyncTimer = null;
 let cloudSyncInFlight = null;
 let lastLocalFingerprint = fingerprintCloudState(state);
@@ -1140,6 +1141,51 @@ function validatePasswordRules(password) {
 
 function isStrongPassword(password) {
   return Object.values(validatePasswordRules(password)).every(Boolean);
+}
+
+function normalizeAuthError(error, mode = 'auth') {
+  const status = Number(error?.status || error?.json?.code || 0);
+  const rawMessage =
+    error?.json?.msg ||
+    error?.json?.error_description ||
+    error?.data ||
+    error?.message ||
+    '';
+  const message = String(rawMessage).trim();
+  const lower = message.toLowerCase();
+
+  if (!message && !status) {
+    return mode === 'signup' ? 'Sign up failed. Please try again.' : 'Login failed. Please try again.';
+  }
+  if (lower.includes('user already registered') || lower.includes('already registered') || lower.includes('email already')) {
+    return 'That email already has an account. Log in or use Forgot Password.';
+  }
+  if (lower.includes('email not confirmed') || lower.includes('confirmation')) {
+    return 'Check your email and confirm your account before logging in.';
+  }
+  if (lower.includes('signup is disabled') || lower.includes('signups not allowed') || authSettings?.disableSignup) {
+    return 'Sign up is turned off on this site. Enable Open registration in Netlify Identity.';
+  }
+  if (lower.includes('netlify identity is not available')) {
+    return 'Netlify Identity is not turned on yet for this site.';
+  }
+  if (lower.includes('invalid login') || lower.includes('invalid email') || lower.includes('invalid password') || lower.includes('bad credentials')) {
+    return mode === 'login' ? 'Email or password is incorrect.' : 'These details are not valid.';
+  }
+  if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('load failed')) {
+    return 'Could not reach the login server. Try again in a moment.';
+  }
+  if (status === 401) {
+    return mode === 'login' ? 'Email or password is incorrect.' : 'You are not authorized for this action.';
+  }
+  if (status === 422) {
+    return mode === 'signup' ? 'Please check your email and password details and try again.' : message || 'Please check your details and try again.';
+  }
+  if (status === 429) {
+    return 'Too many attempts right now. Please wait a moment and try again.';
+  }
+
+  return message || (mode === 'signup' ? 'Sign up failed. Please try again.' : 'Login failed. Please try again.');
 }
 
 async function fetchCloudRecord() {
@@ -1330,7 +1376,7 @@ async function sendCloudResetLink(email) {
     showToast(authMessage);
   } catch (error) {
     console.error(error);
-    authMessage = error.message || 'Could not send reset link';
+    authMessage = normalizeAuthError(error, 'recovery');
     showToast(authMessage);
   } finally {
     authBusy = false;
@@ -1363,7 +1409,7 @@ async function resetCloudPassword(password) {
     showToast('Password updated. You can log in now.');
   } catch (error) {
     console.error(error);
-    authMessage = error.message || 'Could not reset password';
+    authMessage = normalizeAuthError(error, 'reset');
     showToast(authMessage);
   } finally {
     authBusy = false;
@@ -1390,7 +1436,7 @@ async function loginToCloud(email, password) {
     requestScrollReset();
   } catch (error) {
     console.error(error);
-    authMessage = error.message || 'Login failed';
+    authMessage = normalizeAuthError(error, 'login');
     showToast(authMessage);
     renderApp();
   } finally {
@@ -1426,7 +1472,7 @@ async function signupForCloud(name, email, password) {
     requestScrollReset();
   } catch (error) {
     console.error(error);
-    authMessage = error.message || 'Sign up failed';
+    authMessage = normalizeAuthError(error, 'signup');
     showToast(authMessage);
   } finally {
     authBusy = false;
@@ -1478,6 +1524,11 @@ async function initCloudAuth() {
 
   try {
     const callback = await identity.handleAuthCallback();
+    try {
+      authSettings = await identity.getSettings?.();
+    } catch (settingsError) {
+      console.warn(settingsError);
+    }
     await identity.hydrateSession();
     authUser = await identity.getUser();
     identity.onAuthChange(async (event, user) => {
@@ -3450,6 +3501,13 @@ function renderAuthSignup() {
             <input type="checkbox" name="terms" value="yes" ${authBusy || !authReady ? 'disabled' : ''} required>
             <span>I agree to the <strong>Terms &amp; Conditions</strong></span>
           </label>
+          ${
+            authSettings?.disableSignup
+              ? '<p class="auth-hint auth-hint-warning">Sign up is currently turned off in Netlify Identity for this site.</p>'
+              : authSettings && !authSettings.autoconfirm
+                ? '<p class="auth-hint">After sign up, check your email and confirm your account before logging in.</p>'
+                : ''
+          }
           ${renderAuthNotice()}
           <button class="cta-button" type="submit" ${authBusy || !authReady ? 'disabled' : ''}>${authBusy ? 'Please wait...' : 'Sign Up'}</button>
         </form>
