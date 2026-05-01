@@ -56,6 +56,7 @@ const CLOUD_SYNC_DELAY = 1800;
 const MEDIA_DB_NAME = 'sa7d-exercise-media';
 const MEDIA_STORE_NAME = 'exercise-assets';
 const CUSTOM_VIDEO_LIMIT_BYTES = 18 * 1024 * 1024;
+const ANDROID_APK_FILE = 'sa7dfitness-android.apk';
 
 const ICONS = {
   menu:
@@ -2080,6 +2081,21 @@ function enterAppAfterAuth() {
 
 function shouldShowInstallAction() {
   return !isStandaloneMode();
+}
+
+function shouldShowAndroidApkDownload() {
+  return !isStandaloneMode();
+}
+
+function triggerAndroidApkDownload() {
+  const link = document.createElement('a');
+  link.href = ANDROID_APK_FILE;
+  link.download = ANDROID_APK_FILE;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  showToast('Android APK download started');
 }
 
 function fileToDataUrl(file) {
@@ -4356,6 +4372,20 @@ function renderSettings() {
               `
               : ''
           }
+          ${
+            shouldShowAndroidApkDownload()
+              ? `
+                <button class="menu-item" type="button" data-action="download-android-apk">
+                  <span class="status-dot">${icon('download')}</span>
+                  <span>
+                    <strong class="list-title">Download Android APK</strong>
+                    <span class="list-subtitle">Get the Android app file directly from this website</span>
+                  </span>
+                  <span class="status-dot">${icon('chevronRight')}</span>
+                </button>
+              `
+              : ''
+          }
           <button class="menu-item" type="button" data-action="open-screen" data-screen="editProfile">
             <span class="status-dot">${icon('edit')}</span>
             <span>
@@ -4528,6 +4558,16 @@ function renderAuthIntro() {
         <button class="cta-button" type="button" data-action="open-screen" data-screen="authSignup">Get Started</button>
         <button class="secondary-button" type="button" data-action="open-screen" data-screen="authLogin">Log In</button>
       </div>
+      ${
+        shouldShowAndroidApkDownload()
+          ? `
+            <div class="auth-download-block">
+              <button class="ghost-button" type="button" data-action="download-android-apk">${icon('download')} Download Android APK</button>
+              <p class="auth-download-copy">Android users can download the app file from this page and install it on their phone.</p>
+            </div>
+          `
+          : ''
+      }
     </div>
   `;
 }
@@ -4772,6 +4812,19 @@ function renderDrawer() {
               `
               : ''
           }
+          ${
+            shouldShowAndroidApkDownload()
+              ? `
+                <button class="drawer-link" type="button" data-action="download-android-apk">
+                  <span class="drawer-link-copy">
+                    ${icon('download')}
+                    <span>Download Android APK</span>
+                  </span>
+                  <span class="count-pill">APK</span>
+                </button>
+              `
+              : ''
+          }
         </div>
         <button class="drawer-link drawer-link-danger" type="button" data-action="demo-logout">
           <span class="drawer-link-copy">
@@ -4923,6 +4976,11 @@ root.addEventListener('click', (event) => {
 
   if (action === 'install-app') {
     promptInstallApp();
+    return;
+  }
+
+  if (action === 'download-android-apk') {
+    triggerAndroidApkDownload();
     return;
   }
 
@@ -5448,7 +5506,7 @@ if ('serviceWorker' in navigator) {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('./sw.js?v=8', { updateViaCache: 'none' })
+      .register('./sw.js?v=9', { updateViaCache: 'none' })
       .then((registration) => {
         if (registration.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });

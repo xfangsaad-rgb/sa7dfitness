@@ -157,6 +157,23 @@ img {
   line-height: 1.7;
 }
 
+.intro-actions {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1.4rem;
+}
+
+.intro-download-link {
+  text-decoration: none;
+}
+
+.intro-link-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .feature-pills {
   display: flex;
   flex-wrap: wrap;
@@ -1407,6 +1424,20 @@ img {
 .auth-actions-stack {
   display: grid;
   gap: 0.8rem;
+}
+
+.auth-download-block {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.95rem;
+}
+
+.auth-download-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .auth-panel {
