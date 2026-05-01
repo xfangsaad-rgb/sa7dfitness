@@ -1453,7 +1453,7 @@ async function logoutFromCloud() {
     }
     state.cloud.lastSyncStatus = 'local';
     state.cloud.lastError = '';
-    state.ui.screen = 'settings';
+    state.ui.screen = shouldUseWebsiteAuthEntry() ? 'authIntro' : 'settings';
     requestScrollReset();
     persistState({ scheduleCloud: false });
     showToast('Signed out of cloud save');
@@ -1510,6 +1510,9 @@ async function initCloudAuth() {
     if (authUser) {
       state.cloud.lastError = '';
       persistState({ scheduleCloud: false });
+    } else if (shouldUseWebsiteAuthEntry() && !isAuthScreen()) {
+      state.ui.screen = 'authIntro';
+      requestScrollReset();
     }
   } catch (error) {
     console.error(error);
@@ -1638,6 +1641,18 @@ function groupedNotifications(list) {
 
 function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isWebsiteMode() {
+  return !isStandaloneMode();
+}
+
+function shouldUseWebsiteAuthEntry() {
+  return isWebsiteMode() && isCloudAvailable();
+}
+
+function isAuthScreen(screen = state.ui.screen) {
+  return ['authIntro', 'authLogin', 'authSignup', 'authForgot', 'authReset', 'cloudLogout'].includes(screen);
 }
 
 function shouldShowInstallAction() {
@@ -4003,7 +4018,7 @@ root.addEventListener('click', (event) => {
 
   if (action === 'demo-logout') {
     state.ui.drawerOpen = false;
-    state.ui.screen = 'home';
+    state.ui.screen = shouldUseWebsiteAuthEntry() ? 'authIntro' : 'home';
     state.activeWorkout = null;
     state.ui.restSeconds = 45;
     requestScrollReset();
