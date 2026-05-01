@@ -1188,6 +1188,7 @@ function createDefaultState() {
       screen: 'home',
       selectedDate: today,
       selectedPlanId: schedule[today] || plans[0].id,
+      customExerciseDate: today,
       customExercisePlanId: schedule[today] || plans[0].id,
       guidePlanId: plans[0].id,
       guideExerciseId: plans[0].exercises[0]?.id || '',
@@ -1890,6 +1891,45 @@ function getSelectedPlan() {
   return getPlan(state.ui.selectedPlanId || state.schedule[state.ui.selectedDate] || state.plans[0].id);
 }
 
+function planIdForDate(dateIso) {
+  return state.schedule[dateIso] || state.plans[0].id;
+}
+
+function scheduleDatesForPlan(planId) {
+  return Object.entries(state.schedule)
+    .filter(([, scheduledPlanId]) => scheduledPlanId === planId)
+    .map(([dateIso]) => dateIso)
+    .sort();
+}
+
+function clonePlanForDate(dateIso, sourcePlan) {
+  const clonedPlan = clone(sourcePlan);
+  clonedPlan.id = `plan-day-${dateIso}-${Math.random().toString(36).slice(2, 8)}`;
+  clonedPlan.exercises = clonedPlan.exercises.map((exercise, exerciseIndex) => {
+    const nextExercise = clone(exercise);
+    const baseId = exercise.libId || exercise.id || `exercise-${exerciseIndex + 1}`;
+    nextExercise.id = `${baseId}-${Math.random().toString(36).slice(2, 8)}`;
+    nextExercise.sets = nextExercise.sets.map((set, setIndex) => ({
+      ...set,
+      id: `${nextExercise.id}-set-${setIndex + 1}`
+    }));
+    return nextExercise;
+  });
+  state.plans.push(clonedPlan);
+  state.schedule[dateIso] = clonedPlan.id;
+  return clonedPlan;
+}
+
+function ensurePlanForCustomDate(dateIso) {
+  let plan = getPlan(planIdForDate(dateIso));
+  const sharedDates = scheduleDatesForPlan(plan.id).filter((value) => value !== dateIso);
+  if (sharedDates.length) {
+    plan = clonePlanForDate(dateIso, plan);
+  }
+  state.ui.customExercisePlanId = plan.id;
+  return plan;
+}
+
 function getExercise(planId, exerciseId) {
   const plan = getPlan(planId);
   return plan.exercises.find((exercise) => exercise.id === exerciseId);
@@ -2410,7 +2450,8 @@ function addExerciseToPlan(libraryId) {
 }
 
 function addCustomExerciseToPlan({ name, category, cue, sets, reps, weight }) {
-  const plan = getPlan(state.ui.editingPlanId || state.ui.selectedPlanId);
+  const dateIso = state.ui.customExerciseDate || state.ui.selectedDate;
+  const plan = ensurePlanForCustomDate(dateIso);
   const newExercise = buildCustomExercise({
     name,
     category,
@@ -2424,9 +2465,11 @@ function addCustomExerciseToPlan({ name, category, cue, sets, reps, weight }) {
   if (state.activeWorkout && state.activeWorkout.planId === plan.id) {
     state.activeWorkout.completedSets[newExercise.id] = newExercise.sets.map(() => false);
   }
+  state.ui.selectedDate = dateIso;
   state.ui.selectedPlanId = plan.id;
   state.ui.editingPlanId = plan.id;
   state.ui.editingExerciseId = newExercise.id;
+  state.ui.customExercisePlanId = plan.id;
   state.ui.screen = 'editExercise';
   requestScrollReset();
   showToast('Custom exercise added to this day');
@@ -3930,14 +3973,36 @@ function renderLibrary() {
 }
 
 function renderCustomExercise() {
-  const plan = getPlan(state.ui.customExercisePlanId || state.ui.selectedPlanId || state.plans[0].id);
+  const selectedDate = state.ui.customExerciseDate || state.ui.selectedDate;
+  const weekList = weekDates(selectedDate);
+  const plan = getPlan(state.ui.customExercisePlanId || planIdForDate(selectedDate));
+  const sharedDates = scheduleDatesForPlan(plan.id).filter((value) => value !== selectedDate);
   return `
     <div class="screen tight fade-up">
       ${renderDeepHeader('Custom Exercise', 'library', `<button class="linkish" type="submit" form="custom-exercise-form">Add</button>`)}
       <section class="card card-pad section">
         <p class="section-kicker accent">Selected Day</p>
         <h2 class="screen-title" style="font-size:1.55rem; margin:0.25rem 0 0.35rem;">${escapeHtml(plan.name)}</h2>
-        <p class="screen-subtitle">Add a new custom exercise to ${escapeHtml(formatShortDate(state.ui.selectedDate))}. You can add as many exercises as you need for one day.</p>
+        <p class="screen-subtitle">Add a new custom exercise to ${escapeHtml(formatShortDate(selectedDate))}. You can add as many exercises as you need for one day.</p>
+        <div class="chip-row section" style="margin-bottom:0;">
+          ${weekList
+            .map((dateValue) => {
+              const chip = formatDateChip(dateValue);
+              const active = dateValue === selectedDate;
+              return `
+                <button class="chip date-chip ${active ? 'active' : ''}" type="button" data-action="select-custom-exercise-day" data-date="${dateValue}">
+                  <span>${chip.label}</span>
+                  <strong>${chip.day}</strong>
+                </button>
+              `;
+            })
+            .join('')}
+        </div>
+        ${
+          sharedDates.length
+            ? `<p class="auth-hint section">This day currently shares the <strong>${escapeHtml(plan.name)}</strong> plan with other days. When you add this custom exercise, SA7D will make a day-only copy for ${escapeHtml(formatShortDate(selectedDate))}.</p>`
+            : ''
+        }
       </section>
       <form class="form" id="custom-exercise-form" data-form="custom-exercise">
         <label>
@@ -4806,6 +4871,7 @@ function openScreen(screen) {
     state.ui.editingPlanId = state.ui.selectedPlanId || todayPlan().id;
   }
   if (screen === 'customExercise') {
+    state.ui.customExerciseDate = state.ui.selectedDate;
     state.ui.customExercisePlanId = state.ui.selectedPlanId || todayPlan().id;
     state.ui.editingPlanId = state.ui.customExercisePlanId;
   }
@@ -4864,6 +4930,15 @@ root.addEventListener('click', (event) => {
     state.ui.selectedDate = target.dataset.date;
     state.ui.selectedPlanId = state.schedule[target.dataset.date] || state.plans[0].id;
     persistState();
+    renderApp();
+    return;
+  }
+
+  if (action === 'select-custom-exercise-day') {
+    state.ui.customExerciseDate = target.dataset.date;
+    state.ui.customExercisePlanId = planIdForDate(target.dataset.date);
+    state.ui.editingPlanId = state.ui.customExercisePlanId;
+    persistState({ scheduleCloud: false });
     renderApp();
     return;
   }
