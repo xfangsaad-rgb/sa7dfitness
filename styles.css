@@ -132,6 +132,18 @@ img {
   padding: 0.5rem 0;
 }
 
+.intro-logo {
+  display: block;
+  width: min(100%, 16rem);
+  height: auto;
+  border-radius: 2rem;
+  border: 1px solid rgba(214, 177, 255, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 38px rgba(154, 92, 255, 0.18),
+    0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
 .eyebrow {
   margin: 0;
   color: #c894ff;
