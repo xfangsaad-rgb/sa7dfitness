@@ -1316,18 +1316,18 @@ function inferNotificationVariant(item) {
 }
 
 function normalizeNotificationItem(item, fallback = {}) {
-  const merged = { ...fallback, ...(item || {}) };
+  const merged = { ...(item || {}), ...fallback };
   return {
     ...merged,
-    id: merged.id || fallback.id || `notif-${Date.now()}`,
-    title: merged.title || fallback.title || 'Notification',
-    message: merged.message || fallback.message || '',
-    time: merged.time || merged.day || fallback.time || 'now',
-    section: inferNotificationSection(merged),
-    category: inferNotificationCategory(merged),
-    iconName: inferNotificationIconName(merged),
-    variant: inferNotificationVariant(merged),
-    read: Boolean(merged.read)
+    id: fallback.id || merged.id || `notif-${Date.now()}`,
+    title: fallback.title || merged.title || 'Notification',
+    message: fallback.message || merged.message || '',
+    time: fallback.time || merged.time || merged.day || 'now',
+    section: fallback.section || inferNotificationSection(merged),
+    category: fallback.category || inferNotificationCategory(merged),
+    iconName: fallback.iconName || inferNotificationIconName(merged),
+    variant: fallback.variant || inferNotificationVariant(merged),
+    read: Boolean(item?.read)
   };
 }
 
@@ -1338,13 +1338,7 @@ function normalizeNotifications(list) {
   }
 
   const existingById = new Map(list.map((item) => [item.id, item]));
-  const merged = fallback.map((item) => normalizeNotificationItem(existingById.get(item.id), item));
-  const knownIds = new Set(fallback.map((item) => item.id));
-  const extras = list
-    .filter((item) => item?.id && !knownIds.has(item.id))
-    .map((item) => normalizeNotificationItem(item));
-
-  return [...merged, ...extras];
+  return fallback.map((item) => normalizeNotificationItem(existingById.get(item.id), item));
 }
 
 function isLegacyDemoState(value) {
@@ -2247,7 +2241,12 @@ function renderMonarchNotificationCard(item, { featured = false } = {}) {
 }
 
 function renderNotificationCard(item) {
-  return inferNotificationVariant(item) === 'featured'
+  const useFeatured =
+    inferNotificationVariant(item) === 'featured' &&
+    String(item.title || '').length <= 28 &&
+    String(item.message || '').length <= 90;
+
+  return useFeatured
     ? renderMonarchNotificationCard(item, { featured: true })
     : renderBasicNotificationCard(item);
 }
