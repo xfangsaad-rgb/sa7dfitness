@@ -775,6 +775,16 @@ img {
   z-index: -2;
 }
 
+.notification-item.featured .notification-backdrop {
+  background:
+    linear-gradient(92deg, rgba(7, 3, 15, 0.98) 0%, rgba(7, 3, 15, 0.94) 34%, rgba(8, 4, 17, 0.8) 56%, rgba(7, 3, 15, 0.96) 100%),
+    url("./icons/monarch-card-wide.png");
+  background-repeat: no-repeat;
+  background-position: center, center;
+  background-size: auto, cover;
+  opacity: 0.98;
+}
+
 .notification-thumb-shell {
   position: relative;
   width: 5rem;
@@ -902,7 +912,8 @@ img {
 }
 
 .notification-item.featured .notification-title-display {
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(2.3rem, 5vw, 3.35rem);
+  max-width: 14rem;
 }
 
 .notification-title-sigil,
@@ -935,9 +946,9 @@ img {
 }
 
 .notification-item.featured .notification-body-display {
-  max-width: 36rem;
-  font-size: clamp(1.18rem, 2.2vw, 1.55rem);
-  line-height: 1.28;
+  max-width: 15rem;
+  font-size: clamp(1.16rem, 2.1vw, 1.42rem);
+  line-height: 1.24;
 }
 
 .notification-side {
@@ -1993,6 +2004,27 @@ img {
   margin-bottom: 0.15rem;
 }
 
+.notification-item.featured .notification-copy::before,
+.notification-item.featured .notification-copy::after {
+  content: "✦";
+  position: absolute;
+  right: 0.5rem;
+  color: #ca8cff;
+  font-size: 1.2rem;
+  text-shadow: 0 0 16px rgba(191, 121, 255, 0.55);
+  opacity: 0.95;
+}
+
+.notification-item.featured .notification-copy::before {
+  top: 4.3rem;
+}
+
+.notification-item.featured .notification-copy::after {
+  top: 8rem;
+  right: 0.15rem;
+  font-size: 1rem;
+}
+
 .challenge-card {
   overflow: hidden;
 }
@@ -2278,9 +2310,25 @@ img {
     border-radius: 24px;
   }
 
+  .notification-item.featured {
+    display: block;
+    min-height: 25.5rem;
+    padding: 1rem 1rem 1.15rem;
+    border-radius: 30px;
+  }
+
   .notification-backdrop {
     background-position: center, 88% 52%, 138% center;
     background-size: auto, 10rem 10rem, auto 126%;
+  }
+
+  .notification-item.featured .notification-backdrop {
+    background:
+      linear-gradient(180deg, rgba(8, 3, 17, 0.98), rgba(8, 3, 17, 0.9) 48%, rgba(8, 3, 17, 0.98)),
+      url("./icons/monarch-card-wide.png");
+    background-repeat: no-repeat;
+    background-position: center, 74% center;
+    background-size: auto, cover;
   }
 
   .notification-thumb-shell,
@@ -2288,6 +2336,15 @@ img {
     width: 4.25rem;
     height: 4.25rem;
     border-radius: 1.4rem;
+  }
+
+  .notification-item.featured .notification-thumb-shell {
+    position: absolute;
+    left: 0.95rem;
+    top: 8.75rem;
+    width: 4.65rem;
+    height: 4.65rem;
+    border-radius: 1.55rem;
   }
 
   .notification-brand {
@@ -2299,7 +2356,9 @@ img {
   }
 
   .notification-item.featured .notification-title-display {
-    font-size: 1.74rem;
+    max-width: 8.5rem;
+    font-size: 2.8rem;
+    line-height: 0.92;
   }
 
   .notification-body-display {
@@ -2309,7 +2368,9 @@ img {
   }
 
   .notification-item.featured .notification-body-display {
+    max-width: 8.8rem;
     font-size: 1rem;
+    line-height: 1.18;
   }
 
   .notification-title-sigil {
@@ -2320,8 +2381,48 @@ img {
     min-width: 1.5rem;
   }
 
+  .notification-item.featured .notification-copy {
+    position: relative;
+    z-index: 1;
+    display: block;
+    padding: 0.35rem 2.2rem 0 5.25rem;
+  }
+
+  .notification-item.featured .notification-brand-row {
+    justify-content: flex-start;
+    margin-bottom: 0.55rem;
+  }
+
+  .notification-item.featured .notification-title-row {
+    display: block;
+    margin-bottom: 0.55rem;
+  }
+
+  .notification-item.featured .notification-body-display {
+    display: block;
+  }
+
+  .notification-item.featured .notification-side {
+    position: absolute;
+    top: 1rem;
+    right: 0.95rem;
+    bottom: 1rem;
+    min-width: 1.4rem;
+    justify-items: center;
+  }
+
   .notification-time-display {
     font-size: 0.9rem;
+  }
+
+  .notification-item.featured .notification-copy::before {
+    top: 5.6rem;
+    right: 1.15rem;
+  }
+
+  .notification-item.featured .notification-copy::after {
+    top: 9.9rem;
+    right: 0.65rem;
   }
 }
 
