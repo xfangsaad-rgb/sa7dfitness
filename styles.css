@@ -118,7 +118,7 @@ img {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(260px, 380px) minmax(320px, 430px);
+  grid-template-columns: minmax(340px, 540px) minmax(320px, 430px);
   gap: 2.5rem;
   align-items: center;
   justify-content: center;
@@ -127,45 +127,82 @@ img {
 }
 
 .intro-panel {
-  padding: 1rem 0;
+  display: grid;
+  gap: 1rem;
+  padding: 0.5rem 0;
 }
 
 .eyebrow {
-  margin: 0 0 0.75rem;
-  color: var(--green-bright);
+  margin: 0;
+  color: #c894ff;
   font-size: 0.8rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(190, 124, 255, 0.36);
 }
 
 .intro-panel h1 {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(2.3rem, 5vw, 4rem);
-  line-height: 1;
+  font-family: var(--font-ornate);
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 0.98;
+  color: #fffafe;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.08);
 }
 
-.intro-logo {
+.intro-hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 34px;
+  border: 1px solid rgba(214, 177, 255, 0.4);
+  background:
+    radial-gradient(circle at left center, rgba(174, 99, 255, 0.18), transparent 30%),
+    rgba(7, 3, 15, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 45px rgba(154, 92, 255, 0.22),
+    0 24px 70px rgba(0, 0, 0, 0.5);
+}
+
+.intro-hero-banner {
   display: block;
-  width: min(100%, 15rem);
+  width: 100%;
   height: auto;
-  margin: 0 0 0.4rem;
-  border-radius: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  filter: drop-shadow(0 12px 30px rgba(155, 92, 255, 0.2));
+}
+
+.intro-brandline {
+  display: grid;
+  grid-template-columns: 5.25rem minmax(0, 1fr);
+  gap: 0.95rem;
+  align-items: center;
+}
+
+.intro-brand-thumb {
+  display: block;
+  width: 5.25rem;
+  height: 5.25rem;
+  border-radius: 1.55rem;
+  border: 1px solid rgba(198, 150, 255, 0.3);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 28px rgba(166, 98, 255, 0.24);
+}
+
+.intro-brand-copy {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .intro-copy {
-  margin: 1rem 0 1.5rem;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.7;
+  margin: 0;
+  color: rgba(246, 238, 255, 0.74);
+  font-size: 0.98rem;
+  line-height: 1.6;
 }
 
 .intro-actions {
   display: grid;
   gap: 0.6rem;
-  margin-bottom: 1.4rem;
 }
 
 .intro-download-link {
@@ -183,7 +220,6 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-bottom: 1.5rem;
 }
 
 .feature-pills span {
@@ -197,12 +233,14 @@ img {
 
 .intro-card {
   padding: 1.25rem;
-  border: 1px solid var(--stroke);
+  border: 1px solid rgba(171, 123, 255, 0.24);
   border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    linear-gradient(180deg, rgba(176, 108, 255, 0.08), transparent),
     rgba(18, 11, 30, 0.8);
-  box-shadow: var(--shadow);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    var(--shadow);
 }
 
 .intro-label {
@@ -812,10 +850,10 @@ img {
   inset: 0;
   background:
     linear-gradient(180deg, rgba(173, 104, 255, 0.12), rgba(6, 2, 13, 0.08)),
-    url("./icons/monarch-notification.png");
+    url("./icons/monarch-card-thumb.png");
   background-repeat: no-repeat;
-  background-position: center, 12% center;
-  background-size: auto, 340% auto;
+  background-position: center, center;
+  background-size: auto, cover;
   transform: scale(1.03);
 }
 
