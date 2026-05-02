@@ -84,6 +84,8 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13.5 6.5 19 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>',
   chevronRight:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5 7 7-7 7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>',
+  monarch:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 10.8 7l-3.7-2 1 4.1-4 .8 3.7 2.8-1.4 4.8 5-2.3 1.6 5.8 1.6-5.8 5 2.3-1.4-4.8 3.7-2.8-4-.8 1-4.1-3.7 2Z" fill="currentColor"/></svg>',
   check:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 12.5 3.2 3.2 7.8-8.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>',
   search:
@@ -1064,29 +1066,38 @@ function createDefaultState() {
   const notifications = [
     {
       id: 'notif-1',
-      title: 'Welcome to SA7D',
-      message: 'Your app is ready. Edit your profile and start your first workout when you are set.',
-      time: '9:00 AM',
+      title: 'Workout Complete.',
+      message: 'You have completed your Push Day workout. Continue your rise.',
+      time: '9:41 AM',
       day: 'Today',
-      icon: 'bell',
+      icon: 'check',
       read: false
     },
     {
       id: 'notif-2',
-      title: 'Build Your Plan',
-      message: 'Open any workout and change exercises, sets, reps, photos, or goals to match the new user.',
-      time: '8:45 AM',
+      title: 'Streak Ascending.',
+      message: 'Five training days in a row. Return tomorrow and keep the throne.',
+      time: '8:15 AM',
       day: 'Today',
-      icon: 'edit',
+      icon: 'bolt',
       read: false
     },
     {
       id: 'notif-3',
-      title: 'Need a Reset Later?',
-      message: 'Use the reset option in Settings to clear the app again for another person on this browser.',
-      time: 'Yesterday',
+      title: 'Recovery Window.',
+      message: 'Hydrate tonight, stretch your chest, and sleep early so Upper Day II hits harder.',
+      time: '7:30 PM',
       day: 'Yesterday',
-      icon: 'bolt',
+      icon: 'timer',
+      read: true
+    },
+    {
+      id: 'notif-4',
+      title: 'Goal Locked.',
+      message: 'Your bulk target is synced. Keep pushing until the next weight check-in.',
+      time: '5:10 PM',
+      day: 'Earlier',
+      icon: 'target',
       read: true
     }
   ];
@@ -2059,6 +2070,38 @@ function groupedNotifications(list) {
       items: list.filter((item) => item.day === label)
     }))
     .filter((group) => group.items.length);
+}
+
+function notificationTimeLabel(item, featured = false) {
+  if (featured && item.day === 'Today') {
+    return 'now';
+  }
+  return item.time || item.day || 'now';
+}
+
+function renderMonarchNotificationCard(item, { featured = false } = {}) {
+  return `
+    <button class="notification-item ${item.read ? '' : 'unread'} ${featured ? 'featured' : ''}" type="button" data-action="toggle-notification-read" data-id="${item.id}">
+      <span class="notification-backdrop" aria-hidden="true"></span>
+      <span class="notification-thumb-shell" aria-hidden="true"></span>
+      <span class="notification-copy">
+        <span class="notification-brand-row">
+          <span class="notification-brand">Shadow Monarch</span>
+          ${item.read ? '' : '<span class="notification-live-dot"></span>'}
+        </span>
+        <span class="notification-title-row">
+          <strong class="notification-title-display">${escapeHtml(item.title)}</strong>
+          <span class="notification-title-sigil">${icon('monarch')}</span>
+        </span>
+        <span class="notification-body-display">${escapeHtml(item.message)}</span>
+      </span>
+      <span class="notification-side">
+        <span class="notification-time-display">${escapeHtml(notificationTimeLabel(item, featured))}</span>
+        <span class="notification-side-sigil">${icon('monarch')}</span>
+        <span class="notification-chevron ${featured ? 'featured' : ''}">${icon('chevronRight')}</span>
+      </span>
+    </button>
+  `;
 }
 
 function isStandaloneMode() {
@@ -4257,8 +4300,10 @@ function renderNotifications() {
   const filter = state.ui.notificationFilter;
   const notifications = state.notifications.filter((item) => filter === 'all' || !item.read);
   const unreadCount = unreadNotificationCount();
+  const featuredNotification = notifications[0] || null;
+  const queuedNotifications = featuredNotification ? notifications.slice(1) : [];
   return `
-    <div class="screen tight fade-up">
+    <div class="screen tight fade-up monarch-notifications-screen">
       ${renderDeepHeader(
         'Notifications',
         'home',
@@ -4278,8 +4323,19 @@ function renderNotifications() {
           .join('')}
       </div>
 
+      ${
+        featuredNotification
+          ? `
+            <section class="section notification-spotlight">
+              ${renderMonarchNotificationCard(featuredNotification, { featured: true })}
+            </section>
+          `
+          : ''
+      }
+
       <section class="section list">
-        ${groupedNotifications(notifications)
+        ${queuedNotifications.length
+          ? groupedNotifications(queuedNotifications)
           .map(
             (group) => `
               <div class="notification-group">
@@ -4287,26 +4343,17 @@ function renderNotifications() {
                 <div class="list">
                   ${group.items
                     .map(
-                      (item) => `
-                        <button class="notification-item ${item.read ? '' : 'unread'}" type="button" data-action="toggle-notification-read" data-id="${item.id}">
-                          <span class="notification-icon">${icon(item.icon)}</span>
-                          <span class="notification-copy">
-                            <strong class="list-title">${escapeHtml(item.title)}</strong>
-                            <span class="list-subtitle">${escapeHtml(item.message)}</span>
-                          </span>
-                          <span class="notification-meta">
-                            <span class="tiny muted">${item.time}</span>
-                            <span class="notification-dot ${item.read ? 'read' : ''}"></span>
-                          </span>
-                        </button>
-                      `
+                      (item) => renderMonarchNotificationCard(item)
                     )
                     .join('')}
                 </div>
               </div>
             `
           )
-          .join('') || '<div class="card empty-state">You are all caught up.</div>'}
+          .join('')
+          : featuredNotification
+            ? '<div class="card empty-state">Only your latest royal alert is waiting right now.</div>'
+            : '<div class="card empty-state">You are all caught up.</div>'}
       </section>
     </div>
   `;
