@@ -57,6 +57,7 @@ const MEDIA_DB_NAME = 'sa7d-exercise-media';
 const MEDIA_STORE_NAME = 'exercise-assets';
 const CUSTOM_VIDEO_LIMIT_BYTES = 18 * 1024 * 1024;
 const ANDROID_APK_FILE = 'sa7dfitness-android.apk';
+const ANDROID_APK_DOWNLOAD_URL = 'https://xfangsaad-rgb.github.io/sa7dfitness/sa7dfitness-android.apk';
 
 const ICONS = {
   menu:
@@ -2120,12 +2121,12 @@ function shouldShowInstallAction() {
 }
 
 function shouldShowAndroidApkDownload() {
-  return isWebsiteMode() && !isFirebaseHostingHost();
+  return isWebsiteMode();
 }
 
 function triggerAndroidApkDownload() {
   const link = document.createElement('a');
-  link.href = ANDROID_APK_FILE;
+  link.href = isFirebaseHostingHost() ? ANDROID_APK_DOWNLOAD_URL : ANDROID_APK_FILE;
   link.download = ANDROID_APK_FILE;
   link.rel = 'noopener';
   document.body.appendChild(link);
