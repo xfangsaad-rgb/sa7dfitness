@@ -15,14 +15,14 @@ This repo now includes a Capacitor Android app wrapper in [android](C:\Users\saa
 The generated debug APK is:
 [app-debug.apk](C:\Users\saadm\Downloads\GYM\android\app\build\outputs\apk\debug\app-debug.apk)
 
-This Android app can load the Firebase-hosted site at [https://sa7dfitness-b0de3.web.app](https://sa7dfitness-b0de3.web.app), so website updates can show inside the app without rebuilding the APK. Internet is required for the app to load.
+This Android app can load the Firebase-hosted site at [https://saadfitness.web.app](https://saadfitness.web.app), so website updates can show inside the app without rebuilding the APK. Internet is required for the app to load.
 
 ## Publish
 
 ## Firebase Host
 
 This repo can run for free on Firebase Hosting:
-[https://sa7dfitness-b0de3.web.app](https://sa7dfitness-b0de3.web.app)
+[https://saadfitness.web.app](https://saadfitness.web.app)
 
 The app now uses:
 

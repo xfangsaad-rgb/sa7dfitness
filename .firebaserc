@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "sa7dfitness-b0de3"
+  },
+  "targets": {
+    "sa7dfitness-b0de3": {
+      "hosting": {
+        "live": [
+          "saadfitness"
+        ]
+      }
+    }
   }
 }

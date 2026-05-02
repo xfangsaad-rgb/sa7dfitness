@@ -3,6 +3,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
+    "target": "live",
     "public": ".",
     "ignore": [
       "firebase.json",
