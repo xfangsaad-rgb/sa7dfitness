@@ -34,6 +34,19 @@ Run `npm run build` before deploying so [identity-client.js](C:\Users\saadm\Down
 
 To use cloud save on the live site, turn on `Authentication > Sign-in method > Email/Password` and create the default Firestore database in the Firebase console.
 
+## Preview First Workflow
+
+From now on, app updates do not need to go live first.
+
+Use this order:
+
+1. Make the app changes locally.
+2. Check them first with `npm run preview:local` for a local preview.
+3. If you want an online preview link before production, run `npm run deploy:preview`.
+4. Only after you approve the change, publish it with `npm run deploy:live`.
+
+This keeps [https://saadfitness.web.app](https://saadfitness.web.app) unchanged until the final live deploy step.
+
 ## Features
 
 - Home dashboard with workout summary

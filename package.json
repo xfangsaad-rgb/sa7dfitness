@@ -5,6 +5,9 @@
   "scripts": {
     "build": "npm run build:identity",
     "build:identity": "esbuild src/identity-client.entry.js --bundle --format=iife --platform=browser --target=es2020 --global-name=SA7DIdentityModule --outfile=identity-client.js",
+    "preview:local": "npm run build && npx firebase-tools emulators:start --only hosting --project sa7dfitness-b0de3",
+    "deploy:preview": "npm run build && npx firebase-tools hosting:channel:deploy preview --project sa7dfitness-b0de3",
+    "deploy:live": "npm run build && npx firebase-tools deploy --only hosting --project sa7dfitness-b0de3",
     "android:sync": "npx cap sync android",
     "android:open": "npx cap open android"
   },
