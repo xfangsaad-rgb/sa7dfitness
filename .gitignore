@@ -10,3 +10,5 @@ android/.gradle-user/
 android/app/build/
 android/build/
 android/local.properties
+.firebase/
+firebase-debug.log

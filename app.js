@@ -1368,20 +1368,35 @@ function isGitHubPagesHost() {
   return window.location.hostname.endsWith('github.io');
 }
 
+function isFirebaseHostingHost() {
+  return window.location.hostname.endsWith('web.app') || window.location.hostname.endsWith('firebaseapp.com');
+}
+
 function cloudUnavailableCopy() {
-  if (isGitHubPagesHost()) {
-    return 'Cloud login is not included on this free GitHub Pages version. Your workouts and profile stay saved on this device.';
+  if (window.location.protocol === 'file:') {
+    return 'Cloud login works on the hosted website. This local file version only saves data on this device.';
   }
-  return 'Turn on Netlify Identity for this site to let users log in and keep their data across devices.';
+  if (isGitHubPagesHost()) {
+    return 'Cloud login works on the new Firebase website. This older GitHub Pages copy only saves data on this device.';
+  }
+  return 'Cloud login is not ready on this copy of the app yet. Local save still works on this device.';
 }
 
 function getIdentityClient() {
   return window.SA7DIdentity || null;
 }
 
+function getCloudClient() {
+  return window.SA7DCloud || null;
+}
+
 function isCloudAvailable() {
+  if (window.location.protocol === 'file:') {
+    return false;
+  }
   const identity = getIdentityClient();
-  return Boolean(identity?.getIdentityConfig?.());
+  const cloud = getCloudClient();
+  return Boolean(identity?.getIdentityConfig?.() && cloud?.loadState && cloud?.saveState);
 }
 
 function isCloudLoggedIn() {
@@ -1448,6 +1463,7 @@ function isStrongPassword(password) {
 }
 
 function normalizeAuthError(error, mode = 'auth') {
+  const code = String(error?.code || error?.json?.code || '').toLowerCase();
   const status = Number(error?.status || error?.json?.code || 0);
   const rawMessage =
     error?.json?.msg ||
@@ -1461,6 +1477,24 @@ function normalizeAuthError(error, mode = 'auth') {
   if (!message && !status) {
     return mode === 'signup' ? 'Sign up failed. Please try again.' : 'Login failed. Please try again.';
   }
+  if (code.includes('email-already-in-use')) {
+    return 'That email already has an account. Log in or use Forgot Password.';
+  }
+  if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found') || code.includes('invalid-login-credentials')) {
+    return mode === 'login' ? 'Email or password is incorrect.' : 'These details are not valid.';
+  }
+  if (code.includes('too-many-requests')) {
+    return 'Too many attempts right now. Please wait a moment and try again.';
+  }
+  if (code.includes('network-request-failed')) {
+    return 'Could not reach the login server. Try again in a moment.';
+  }
+  if (code.includes('weak-password')) {
+    return 'Use a stronger password with upper, lower, special, and at least 8 characters.';
+  }
+  if (code.includes('operation-not-allowed')) {
+    return 'Email/password sign up is turned off in Firebase Authentication for this project.';
+  }
   if (lower.includes('user already registered') || lower.includes('already registered') || lower.includes('email already')) {
     return 'That email already has an account. Log in or use Forgot Password.';
   }
@@ -1468,9 +1502,9 @@ function normalizeAuthError(error, mode = 'auth') {
     return 'Check your email and confirm your account before logging in.';
   }
   if (lower.includes('signup is disabled') || lower.includes('signups not allowed') || authSettings?.disableSignup) {
-    return 'Sign up is turned off on this site. Enable Open registration in Netlify Identity.';
+    return 'Email/password sign up is turned off in Firebase Authentication for this project.';
   }
-  if (lower.includes('netlify identity is not available')) {
+  if (lower.includes('netlify identity is not available') || lower.includes('cloud auth is not available')) {
     return cloudUnavailableCopy();
   }
   if (lower.includes('invalid login') || lower.includes('invalid email') || lower.includes('invalid password') || lower.includes('bad credentials')) {
@@ -1493,22 +1527,13 @@ function normalizeAuthError(error, mode = 'auth') {
 }
 
 async function fetchCloudRecord() {
-  const response = await fetch('/.netlify/functions/cloud-state', {
-    headers: {
-      Accept: 'application/json'
-    },
-    cache: 'no-store'
-  });
-
-  if (response.status === 401) {
-    throw new Error('Cloud session expired. Please log in again.');
+  const cloud = getCloudClient();
+  if (!cloud || !authUser?.uid) {
+    throw new Error(cloudUnavailableCopy());
   }
 
-  if (!response.ok) {
-    throw new Error('Cloud save is not ready yet on the server.');
-  }
-
-  return response.json();
+  const record = await cloud.loadState(authUser.uid);
+  return record || { state: null, updatedAt: '' };
 }
 
 function applyCloudState(nextState, message) {
@@ -1539,7 +1564,8 @@ function applyCloudState(nextState, message) {
 }
 
 async function saveCloudState({ silent = false, force = false } = {}) {
-  if (!authUser || !isCloudAvailable()) {
+  const cloud = getCloudClient();
+  if (!authUser || !isCloudAvailable() || !cloud) {
     return false;
   }
 
@@ -1560,21 +1586,9 @@ async function saveCloudState({ silent = false, force = false } = {}) {
 
   const payload = buildCloudState(state);
 
-  cloudSyncInFlight = fetch('/.netlify/functions/cloud-state', {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  })
-    .then(async (response) => {
-      if (response.status === 401) {
-        throw new Error('Cloud session expired. Please log in again.');
-      }
-      if (!response.ok) {
-        throw new Error('Could not save to the cloud right now.');
-      }
-      const result = await response.json();
+  cloudSyncInFlight = cloud
+    .saveState(authUser.uid, payload)
+    .then(async (result) => {
       lastCloudFingerprint = fingerprint;
       state.cloud.lastSyncedAt = payload.meta.dataUpdatedAt;
       state.cloud.lastRemoteUpdatedAt = result.updatedAt || payload.meta.dataUpdatedAt;
@@ -1760,26 +1774,7 @@ async function signupForCloud(name, email, password) {
   renderApp();
 
   try {
-    const response = await fetch('/.netlify/functions/auth-signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name,
-        email,
-        password
-      })
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      const error = new Error(payload.error || `Sign up failed (${response.status})`);
-      error.status = response.status;
-      throw error;
-    }
-
-    await identity.login(email, password);
+    await identity.signup(name, email, password);
     authUser = await identity.getUser();
     await syncCloudAfterLogin();
     enterAppAfterAuth();
@@ -2125,7 +2120,7 @@ function shouldShowInstallAction() {
 }
 
 function shouldShowAndroidApkDownload() {
-  return isWebsiteMode();
+  return isWebsiteMode() && !isFirebaseHostingHost();
 }
 
 function triggerAndroidApkDownload() {

@@ -6,7 +6,7 @@ A standalone fitness app inspired by the provided reference design.
 
 Open [index.html](C:\Users\saadm\Downloads\GYM\index.html) in a browser.
 
-Cloud save and login only work on the Netlify version, because they use Netlify Identity and Netlify Functions. The free GitHub Pages version keeps data on the current device only.
+Cloud save and login work on the Firebase-hosted version of the app.
 
 ## Android APK
 
@@ -15,24 +15,24 @@ This repo now includes a Capacitor Android app wrapper in [android](C:\Users\saa
 The generated debug APK is:
 [app-debug.apk](C:\Users\saadm\Downloads\GYM\android\app\build\outputs\apk\debug\app-debug.apk)
 
-This Android app can load the free GitHub Pages site at [https://xfangsaad-rgb.github.io/sa7dfitness/](https://xfangsaad-rgb.github.io/sa7dfitness/), so website updates can show inside the app without rebuilding the APK. Internet is required for the app to load.
+This Android app can load the Firebase-hosted site at [https://sa7dfitness-b0de3.web.app](https://sa7dfitness-b0de3.web.app), so website updates can show inside the app without rebuilding the APK. Internet is required for the app to load.
 
 ## Publish
 
-## Free Host
+## Firebase Host
 
-This repo can also run for free on GitHub Pages:
-[https://xfangsaad-rgb.github.io/sa7dfitness/](https://xfangsaad-rgb.github.io/sa7dfitness/)
+This repo can run for free on Firebase Hosting:
+[https://sa7dfitness-b0de3.web.app](https://sa7dfitness-b0de3.web.app)
 
 The app now uses:
 
-- Netlify Identity for login
-- Netlify Functions for cloud save
-- Netlify Blobs for per-user backup storage
+- Firebase Authentication for login
+- Cloud Firestore for per-user cloud save
+- Firebase Hosting for the public website
 
-For GitHub-connected Netlify deploys, the repo includes [netlify.toml](C:\Users\saadm\Downloads\GYM\netlify.toml) and will run `npm run build` automatically.
+Run `npm run build` before deploying so [identity-client.js](C:\Users\saadm\Downloads\GYM\identity-client.js) stays in sync.
 
-To use cloud save on the live site, turn on `Identity` in the Netlify project dashboard.
+To use cloud save on the live site, turn on `Authentication > Sign-in method > Email/Password` and create the default Firestore database in the Firebase console.
 
 ## Features
 

@@ -1,0 +1,46 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "firestore.rules",
+      "package.json",
+      "package-lock.json",
+      "README.md",
+      "src/**",
+      "netlify.toml",
+      "**/.*",
+      "**/node_modules/**",
+      ".netlify/**",
+      "netlify/**",
+      "android/**",
+      "tools/**",
+      "publish/**",
+      "*.apk",
+      "*.zip",
+      "*-check.png",
+      "home-check.png"
+    ],
+    "headers": [
+      {
+        "source": "/sa7dfitness-android.apk",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.android.package-archive"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
