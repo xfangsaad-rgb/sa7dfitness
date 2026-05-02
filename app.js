@@ -1066,20 +1066,20 @@ function createDefaultState() {
   const notifications = [
     {
       id: 'notif-1',
-      title: 'Welcome to SA7D',
-      message: 'Your app is ready. Edit your profile and start your first workout when you are set.',
-      time: '9:41 AM',
-      day: 'Today',
-      icon: 'bell',
-      read: false
-    },
-    {
-      id: 'notif-2',
       title: 'Workout Complete.',
       message: 'You have completed your Push Day workout. Continue your rise.',
       time: '8:15 AM',
       day: 'Today',
       icon: 'check',
+      read: false
+    },
+    {
+      id: 'notif-2',
+      title: 'Welcome to SA7D',
+      message: 'Your app is ready. Edit your profile and start your first workout when you are set.',
+      time: '9:41 AM',
+      day: 'Today',
+      icon: 'bell',
       read: false
     },
     {
@@ -2087,7 +2087,7 @@ function renderMonarchNotificationCard(item, { featured = false } = {}) {
       <span class="notification-copy">
         <span class="notification-brand-row">
           <span class="notification-brand">Shadow Monarch</span>
-          ${item.read ? '' : '<span class="notification-live-dot"></span>'}
+          ${item.read || featured ? '' : '<span class="notification-live-dot"></span>'}
         </span>
         <span class="notification-title-row">
           <strong class="notification-title-display">${escapeHtml(item.title)}</strong>
