@@ -2061,12 +2061,18 @@ function clonePlanForDate(dateIso, sourcePlan) {
   return clonedPlan;
 }
 
-function ensurePlanForCustomDate(dateIso) {
+function ensureEditablePlanForDate(dateIso) {
   let plan = getPlan(planIdForDate(dateIso));
   const sharedDates = scheduleDatesForPlan(plan.id).filter((value) => value !== dateIso);
   if (sharedDates.length) {
     plan = clonePlanForDate(dateIso, plan);
   }
+  state.ui.selectedPlanId = plan.id;
+  return plan;
+}
+
+function ensurePlanForCustomDate(dateIso) {
+  const plan = ensureEditablePlanForDate(dateIso);
   state.ui.customExercisePlanId = plan.id;
   return plan;
 }
@@ -2667,7 +2673,8 @@ function moveExercise(direction) {
 }
 
 function addExerciseToPlan(libraryId) {
-  const plan = getPlan(state.ui.editingPlanId || state.ui.selectedPlanId);
+  const dateIso = state.ui.selectedDate;
+  const plan = ensureEditablePlanForDate(dateIso);
   const newExercise = buildExercise(libraryId, [
     { reps: 12, weight: 20 },
     { reps: 12, weight: 22.5 },
@@ -2677,10 +2684,13 @@ function addExerciseToPlan(libraryId) {
   if (state.activeWorkout && state.activeWorkout.planId === plan.id) {
     state.activeWorkout.completedSets[newExercise.id] = newExercise.sets.map(() => false);
   }
+  state.ui.selectedDate = dateIso;
+  state.ui.selectedPlanId = plan.id;
+  state.ui.editingPlanId = plan.id;
   state.ui.editingExerciseId = newExercise.id;
   state.ui.screen = 'editExercise';
   requestScrollReset();
-  showToast('Exercise added to plan');
+  showToast('Exercise added to this day');
   persistState();
   renderApp();
 }
@@ -4150,6 +4160,9 @@ function renderEditExercise() {
 }
 
 function renderLibrary() {
+  const selectedDate = state.ui.selectedDate;
+  const selectedPlan = getPlan(planIdForDate(selectedDate));
+  const sharedDates = scheduleDatesForPlan(selectedPlan.id).filter((value) => value !== selectedDate);
   const filtered = LIBRARY.filter((item) => {
     const matchesCategory = state.ui.libraryCategory === 'All' || item.category === state.ui.libraryCategory;
     const matchesSearch = item.name.toLowerCase().includes(state.ui.librarySearch.toLowerCase());
@@ -4161,11 +4174,17 @@ function renderLibrary() {
       <section class="card card-pad section">
         <div class="section-head" style="margin-bottom:0.8rem;">
           <div>
-            <h3 class="section-title">Need more exercises today?</h3>
-            <p class="screen-subtitle helper-copy">Create your own custom movement and add it to the selected workout day.</p>
+            <p class="section-kicker accent">Selected Day</p>
+            <h3 class="section-title">Add more exercises for ${escapeHtml(formatShortDate(selectedDate))}</h3>
+            <p class="screen-subtitle helper-copy">Use the library or create your own movement to grow this workout day.</p>
           </div>
-          <span class="count-pill">${getSelectedPlan().exercises.length}</span>
+          <span class="count-pill">${selectedPlan.exercises.length}</span>
         </div>
+        ${
+          sharedDates.length
+            ? `<p class="auth-hint" style="margin:0 0 0.8rem;">This day currently shares the <strong>${escapeHtml(selectedPlan.name)}</strong> plan with other dates. When you add an exercise here, SA7D will make a day-only copy for ${escapeHtml(formatShortDate(selectedDate))}.</p>`
+            : ''
+        }
         <button class="cta-button compact-button" type="button" data-action="open-screen" data-screen="customExercise">
           ${icon('plus')} Create Custom Exercise
         </button>
