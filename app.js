@@ -1189,9 +1189,9 @@ function buildDefaultNotifications() {
   return [
     {
       id: 'notif-1',
-      title: 'Workout Complete!',
-      message: "Great job! You've completed your Push Day workout.",
-      time: '9:41 AM',
+      title: 'Welcome to SA7D',
+      message: 'Your app is ready. Edit your profile and start your first workout when you are set.',
+      time: '9:00 AM',
       section: 'Today',
       category: 'updates',
       iconName: 'dumbbell',
@@ -1200,24 +1200,24 @@ function buildDefaultNotifications() {
     },
     {
       id: 'notif-2',
-      title: 'Upcoming Class Reminder',
-      message: 'Yoga Strength starts in 1 hour - 6:30 PM.',
-      time: '8:30 AM',
+      title: 'Build Your Plan',
+      message: 'Open any workout and change exercises, sets, reps, photos, or goals to match the new user.',
+      time: '8:45 AM',
       section: 'Today',
-      category: 'reminders',
+      category: 'updates',
       iconName: 'calendar',
       variant: 'basic',
       read: false
     },
     {
       id: 'notif-3',
-      title: 'Workout Complete.',
-      message: 'You have completed your Push Day workout. Continue your rise.',
-      time: 'now',
+      title: 'Need a Reset Later?',
+      message: 'Use the reset option in Settings to clear the app again for another person on this browser.',
+      time: 'Yesterday',
       section: 'Today',
       category: 'updates',
       iconName: 'monarch',
-      variant: 'featured',
+      variant: 'basic',
       read: false
     },
     {
@@ -2241,14 +2241,7 @@ function renderMonarchNotificationCard(item, { featured = false } = {}) {
 }
 
 function renderNotificationCard(item) {
-  const useFeatured =
-    inferNotificationVariant(item) === 'featured' &&
-    String(item.title || '').length <= 28 &&
-    String(item.message || '').length <= 90;
-
-  return useFeatured
-    ? renderMonarchNotificationCard(item, { featured: true })
-    : renderBasicNotificationCard(item);
+  return renderBasicNotificationCard(item);
 }
 
 function isStandaloneMode() {
