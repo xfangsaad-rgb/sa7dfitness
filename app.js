@@ -1063,44 +1063,7 @@ function createDefaultState() {
 
   const history = [];
 
-  const notifications = [
-    {
-      id: 'notif-1',
-      title: 'Workout Complete.',
-      message: 'You have completed your Push Day workout. Continue your rise.',
-      time: '8:15 AM',
-      day: 'Today',
-      icon: 'check',
-      read: false
-    },
-    {
-      id: 'notif-2',
-      title: 'Welcome to SA7D',
-      message: 'Your app is ready. Edit your profile and start your first workout when you are set.',
-      time: '9:41 AM',
-      day: 'Today',
-      icon: 'bell',
-      read: false
-    },
-    {
-      id: 'notif-3',
-      title: 'Recovery Window.',
-      message: 'Hydrate tonight, stretch your chest, and sleep early so Upper Day II hits harder.',
-      time: '7:30 PM',
-      day: 'Yesterday',
-      icon: 'timer',
-      read: true
-    },
-    {
-      id: 'notif-4',
-      title: 'Goal Locked.',
-      message: 'Your bulk target is synced. Keep pushing until the next weight check-in.',
-      time: '5:10 PM',
-      day: 'Earlier',
-      icon: 'target',
-      read: true
-    }
-  ];
+  const notifications = buildDefaultNotifications();
 
   const messages = [
     {
@@ -1222,6 +1185,168 @@ function createDefaultState() {
   };
 }
 
+function buildDefaultNotifications() {
+  return [
+    {
+      id: 'notif-1',
+      title: 'Workout Complete!',
+      message: "Great job! You've completed your Push Day workout.",
+      time: '9:41 AM',
+      section: 'Today',
+      category: 'updates',
+      iconName: 'dumbbell',
+      variant: 'basic',
+      read: false
+    },
+    {
+      id: 'notif-2',
+      title: 'Upcoming Class Reminder',
+      message: 'Yoga Strength starts in 1 hour - 6:30 PM.',
+      time: '8:30 AM',
+      section: 'Today',
+      category: 'reminders',
+      iconName: 'calendar',
+      variant: 'basic',
+      read: false
+    },
+    {
+      id: 'notif-3',
+      title: 'Workout Complete.',
+      message: 'You have completed your Push Day workout. Continue your rise.',
+      time: 'now',
+      section: 'Today',
+      category: 'updates',
+      iconName: 'monarch',
+      variant: 'featured',
+      read: false
+    },
+    {
+      id: 'notif-4',
+      title: 'New Achievement Unlocked!',
+      message: "You've reached 10 workouts this month. Keep it up!",
+      time: 'Yesterday',
+      section: 'Today',
+      category: 'updates',
+      iconName: 'trophy',
+      variant: 'basic',
+      read: false
+    },
+    {
+      id: 'notif-5',
+      title: 'Special Offer Just for You!',
+      message: 'Get 20% off on Personal Training packages. Limited time only!',
+      time: 'Yesterday',
+      section: 'Today',
+      category: 'offers',
+      iconName: 'target',
+      variant: 'basic',
+      read: false
+    },
+    {
+      id: 'notif-6',
+      title: 'Your Plan is Ready',
+      message: 'Your custom workout plan for this week is now available.',
+      time: 'Mon',
+      section: 'This Week',
+      category: 'updates',
+      iconName: 'chart',
+      variant: 'basic',
+      read: false
+    }
+  ];
+}
+
+function inferNotificationCategory(item) {
+  const title = String(item?.title || '').toLowerCase();
+  const message = String(item?.message || '').toLowerCase();
+  if (item?.category) {
+    return item.category;
+  }
+  if (title.includes('offer') || message.includes('offer') || message.includes('% off')) {
+    return 'offers';
+  }
+  if (title.includes('reminder') || message.includes('starts in') || title.includes('class')) {
+    return 'reminders';
+  }
+  return 'updates';
+}
+
+function inferNotificationIconName(item) {
+  if (item?.iconName && ICONS[item.iconName]) {
+    return item.iconName;
+  }
+  const title = String(item?.title || '').toLowerCase();
+  const category = inferNotificationCategory(item);
+  if (title.includes('achievement')) {
+    return 'trophy';
+  }
+  if (title.includes('plan')) {
+    return 'chart';
+  }
+  if (category === 'reminders') {
+    return 'calendar';
+  }
+  if (category === 'offers') {
+    return 'target';
+  }
+  if (title.includes('workout')) {
+    return 'dumbbell';
+  }
+  return 'bell';
+}
+
+function inferNotificationSection(item) {
+  if (item?.section) {
+    return item.section;
+  }
+  const timeLabel = String(item?.time || item?.day || '').trim();
+  if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].includes(timeLabel)) {
+    return 'This Week';
+  }
+  return 'Today';
+}
+
+function inferNotificationVariant(item) {
+  if (item?.variant) {
+    return item.variant;
+  }
+  const title = String(item?.title || '').trim();
+  const message = String(item?.message || '').toLowerCase();
+  return title === 'Workout Complete.' && message.includes('continue your rise') ? 'featured' : 'basic';
+}
+
+function normalizeNotificationItem(item, fallback = {}) {
+  const merged = { ...fallback, ...(item || {}) };
+  return {
+    ...merged,
+    id: merged.id || fallback.id || `notif-${Date.now()}`,
+    title: merged.title || fallback.title || 'Notification',
+    message: merged.message || fallback.message || '',
+    time: merged.time || merged.day || fallback.time || 'now',
+    section: inferNotificationSection(merged),
+    category: inferNotificationCategory(merged),
+    iconName: inferNotificationIconName(merged),
+    variant: inferNotificationVariant(merged),
+    read: Boolean(merged.read)
+  };
+}
+
+function normalizeNotifications(list) {
+  const fallback = buildDefaultNotifications();
+  if (!Array.isArray(list) || !list.length) {
+    return fallback;
+  }
+
+  const existingById = new Map(list.map((item) => [item.id, item]));
+  const merged = fallback.map((item) => normalizeNotificationItem(existingById.get(item.id), item));
+  const knownIds = new Set(fallback.map((item) => item.id));
+  const extras = list
+    .filter((item) => item?.id && !knownIds.has(item.id))
+    .map((item) => normalizeNotificationItem(item));
+
+  return [...merged, ...extras];
+}
+
 function isLegacyDemoState(value) {
   return Boolean(
     value &&
@@ -1289,7 +1414,7 @@ function normalizeState(value, { preserveUi = false } = {}) {
     profile: { ...fallback.profile, ...value.profile },
     preferences: { ...fallback.preferences, ...value.preferences },
     metrics: { ...fallback.metrics, ...value.metrics },
-    notifications: Array.isArray(value.notifications) ? value.notifications : fallback.notifications,
+    notifications: normalizeNotifications(value.notifications),
     messages: Array.isArray(value.messages) ? value.messages : fallback.messages,
     challenges: Array.isArray(value.challenges) ? value.challenges : fallback.challenges,
     meta: {
@@ -1308,7 +1433,10 @@ function normalizeState(value, { preserveUi = false } = {}) {
       ...value.ui,
       toast: '',
       screen: preserveUi ? value.ui?.screen || fallback.ui.screen : 'home',
-      drawerOpen: false
+      drawerOpen: false,
+      notificationFilter: ['all', 'updates', 'reminders', 'offers'].includes(value.ui?.notificationFilter)
+        ? value.ui.notificationFilter
+        : fallback.ui.notificationFilter
     }
   };
 
@@ -2064,19 +2192,33 @@ function activeChallengeCount() {
 }
 
 function groupedNotifications(list) {
-  return ['Today', 'Yesterday', 'Earlier']
+  return ['Today', 'This Week', 'Earlier']
     .map((label) => ({
       label,
-      items: list.filter((item) => item.day === label)
+      items: list.filter((item) => inferNotificationSection(item) === label)
     }))
     .filter((group) => group.items.length);
 }
 
 function notificationTimeLabel(item, featured = false) {
-  if (featured && item.day === 'Today') {
-    return 'now';
-  }
-  return item.time || item.day || 'now';
+  return item.time || item.day || (featured ? 'now' : '');
+}
+
+function renderBasicNotificationCard(item) {
+  const iconName = inferNotificationIconName(item);
+  return `
+    <button class="notification-item basic ${item.read ? '' : 'unread'}" type="button" data-action="toggle-notification-read" data-id="${item.id}">
+      <span class="notification-basic-icon-shell" aria-hidden="true">${icon(iconName)}</span>
+      <span class="notification-basic-copy">
+        <strong class="notification-basic-title">${escapeHtml(item.title)}</strong>
+        <span class="notification-basic-message">${escapeHtml(item.message)}</span>
+      </span>
+      <span class="notification-basic-meta">
+        <span class="notification-basic-time">${escapeHtml(notificationTimeLabel(item))}</span>
+        <span class="notification-basic-dot ${item.read ? 'is-read' : ''}"></span>
+      </span>
+    </button>
+  `;
 }
 
 function renderMonarchNotificationCard(item, { featured = false } = {}) {
@@ -2102,6 +2244,12 @@ function renderMonarchNotificationCard(item, { featured = false } = {}) {
       </span>
     </button>
   `;
+}
+
+function renderNotificationCard(item) {
+  return inferNotificationVariant(item) === 'featured'
+    ? renderMonarchNotificationCard(item, { featured: true })
+    : renderBasicNotificationCard(item);
 }
 
 function isStandaloneMode() {
@@ -4298,62 +4446,56 @@ function renderAchievements() {
 
 function renderNotifications() {
   const filter = state.ui.notificationFilter;
-  const notifications = state.notifications.filter((item) => filter === 'all' || !item.read);
-  const unreadCount = unreadNotificationCount();
-  const featuredNotification = notifications[0] || null;
-  const queuedNotifications = featuredNotification ? notifications.slice(1) : [];
+  const notifications = state.notifications.filter((item) => filter === 'all' || inferNotificationCategory(item) === filter);
+  const tabs = [
+    { id: 'all', label: 'All' },
+    { id: 'updates', label: 'Updates' },
+    { id: 'reminders', label: 'Reminders' },
+    { id: 'offers', label: 'Offers' }
+  ];
   return `
     <div class="screen tight fade-up monarch-notifications-screen">
-      ${renderDeepHeader(
-        'Notifications',
-        'home',
-        unreadCount
-          ? `<button class="linkish" type="button" data-action="mark-all-notifications-read">Mark all</button>`
-          : `<span class="count-pill muted-pill">0</span>`
-      )}
-      <div class="segment-control two-up">
-        ${['all', 'unread']
+      <section class="notification-page-shell">
+        <div class="notification-page-head">
+          <div class="notification-page-copy">
+            <h1 class="notification-page-title">Notifications</h1>
+            <p class="notification-page-subtitle">Stay updated with your progress, reminders and offers.</p>
+          </div>
+          <button class="notification-settings-button" type="button" data-action="open-screen" data-screen="settings" aria-label="Open notification settings">
+            ${icon('gear')}
+          </button>
+        </div>
+
+        <div class="notification-filter-tabs" role="tablist" aria-label="Notification categories">
+          ${tabs
           .map(
             (tab) => `
-              <button class="segment-button ${state.ui.notificationFilter === tab ? 'active' : ''}" type="button" data-action="set-notification-filter" data-filter="${tab}">
-                ${tab === 'all' ? `All ${unreadCount ? `<span class="inline-count">${unreadCount}</span>` : ''}` : `Unread ${unreadCount ? `<span class="inline-count">${unreadCount}</span>` : ''}`}
+              <button class="notification-filter-button ${state.ui.notificationFilter === tab.id ? 'active' : ''}" type="button" role="tab" aria-selected="${state.ui.notificationFilter === tab.id}" data-action="set-notification-filter" data-filter="${tab.id}">
+                ${tab.label}
               </button>
             `
           )
           .join('')}
-      </div>
+        </div>
 
-      ${
-        featuredNotification
-          ? `
-            <section class="section notification-spotlight">
-              ${renderMonarchNotificationCard(featuredNotification, { featured: true })}
-            </section>
-          `
-          : ''
-      }
-
-      <section class="section list">
-        ${queuedNotifications.length
-          ? groupedNotifications(queuedNotifications)
+        <section class="notification-page-sections">
+          ${notifications.length
+            ? groupedNotifications(notifications)
           .map(
             (group) => `
-              <div class="notification-group">
-                <p class="label section-kicker">${group.label}</p>
-                <div class="list">
+              <div class="notification-group modern">
+                <h2 class="notification-section-heading">${group.label}</h2>
+                <div class="notification-group-list">
                   ${group.items
-                    .map(
-                      (item) => renderMonarchNotificationCard(item)
-                    )
+                    .map((item) => renderNotificationCard(item))
                     .join('')}
                 </div>
               </div>
             `
           )
           .join('')
-          : featuredNotification
-            ? '<div class="card empty-state">Only your latest royal alert is waiting right now.</div>'
-            : '<div class="card empty-state">You are all caught up.</div>'}
+          : '<div class="card empty-state">You are all caught up.</div>'}
+        </section>
       </section>
     </div>
   `;
