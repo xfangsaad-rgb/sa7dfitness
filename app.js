@@ -58,6 +58,13 @@ const MEDIA_STORE_NAME = 'exercise-assets';
 const CUSTOM_VIDEO_LIMIT_BYTES = 18 * 1024 * 1024;
 const ANDROID_APK_FILE = 'sa7dfitness-android.apk';
 const ANDROID_APK_DOWNLOAD_URL = 'https://xfangsaad-rgb.github.io/sa7dfitness/sa7dfitness-android.apk';
+const WORKOUT_REMINDER_CHANNEL_ID = 'workout-reminders';
+const WORKOUT_REMINDER_NOTIFICATION_ID = 73001;
+const TEST_NOTIFICATION_ID = 73002;
+const DEFAULT_REMINDER_HOUR = 8;
+const DEFAULT_REMINDER_MINUTE = 30;
+
+let nativeNotificationListenerBound = false;
 
 const ICONS = {
   menu:
@@ -2288,6 +2295,203 @@ function syncShellModeClass() {
   document.documentElement.classList.toggle('mode-website', isWebsiteMode());
 }
 
+function getLocalNotificationsPlugin() {
+  return window.Capacitor?.Plugins?.LocalNotifications || null;
+}
+
+function canUseNativePhoneNotifications() {
+  return isNativeShellMode() && Boolean(getLocalNotificationsPlugin());
+}
+
+function formatReminderTime(hour = DEFAULT_REMINDER_HOUR, minute = DEFAULT_REMINDER_MINUTE) {
+  const time = new Date();
+  time.setHours(hour, minute, 0, 0);
+  return time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function reminderPreferenceCopy() {
+  if (!state.preferences.reminder) {
+    return 'Off';
+  }
+  if (canUseNativePhoneNotifications()) {
+    return `On • ${formatReminderTime()} phone alert`;
+  }
+  return `On • ${formatReminderTime()} in Android app`;
+}
+
+async function ensureNativeNotificationChannel() {
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin?.createChannel) {
+    return;
+  }
+  await plugin.createChannel({
+    id: WORKOUT_REMINDER_CHANNEL_ID,
+    name: 'Workout Reminders',
+    description: 'Daily SA7D workout reminders',
+    importance: 5,
+    visibility: 1,
+    vibration: true,
+    lights: true,
+    lightColor: '#8b5cf6'
+  });
+}
+
+async function ensureNativeNotificationPermission({ prompt = false } = {}) {
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin) {
+    return false;
+  }
+  let permission = await plugin.checkPermissions();
+  if (permission.display === 'granted') {
+    return true;
+  }
+  if (!prompt) {
+    return false;
+  }
+  permission = await plugin.requestPermissions();
+  return permission.display === 'granted';
+}
+
+async function cancelNativeNotifications(ids) {
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin || !Array.isArray(ids) || !ids.length) {
+    return;
+  }
+  await plugin.cancel({
+    notifications: ids.map((id) => ({ id }))
+  });
+}
+
+async function syncNativeWorkoutReminder({ prompt = false, announce = false } = {}) {
+  if (!canUseNativePhoneNotifications()) {
+    return false;
+  }
+  if (!state.preferences.reminder) {
+    await cancelNativeNotifications([WORKOUT_REMINDER_NOTIFICATION_ID]);
+    return true;
+  }
+  const granted = await ensureNativeNotificationPermission({ prompt });
+  if (!granted) {
+    return false;
+  }
+  const plugin = getLocalNotificationsPlugin();
+  await ensureNativeNotificationChannel();
+  await cancelNativeNotifications([WORKOUT_REMINDER_NOTIFICATION_ID]);
+  await plugin.schedule({
+    notifications: [
+      {
+        id: WORKOUT_REMINDER_NOTIFICATION_ID,
+        title: 'Workout Reminder',
+        body: 'Time to train. Open SA7D and keep your streak alive.',
+        largeBody: 'Time to train. Open SA7D and keep your streak alive.',
+        summaryText: 'SA7D daily workout reminder',
+        channelId: WORKOUT_REMINDER_CHANNEL_ID,
+        iconColor: '#8b5cf6',
+        schedule: {
+          on: {
+            hour: DEFAULT_REMINDER_HOUR,
+            minute: DEFAULT_REMINDER_MINUTE
+          },
+          allowWhileIdle: true
+        }
+      }
+    ]
+  });
+  if (announce) {
+    showToast(`Phone reminder set for ${formatReminderTime()}`);
+    renderApp();
+  }
+  return true;
+}
+
+async function handleReminderToggle() {
+  const nextValue = !state.preferences.reminder;
+  state.preferences.reminder = nextValue;
+  persistState({ scheduleCloud: false });
+  renderApp();
+
+  if (!nextValue) {
+    await cancelNativeNotifications([WORKOUT_REMINDER_NOTIFICATION_ID]);
+    showToast('Workout reminder disabled');
+    renderApp();
+    return;
+  }
+
+  if (!canUseNativePhoneNotifications()) {
+    showToast('Phone popup reminders work in the Android app');
+    renderApp();
+    return;
+  }
+
+  const scheduled = await syncNativeWorkoutReminder({ prompt: true });
+  if (!scheduled) {
+    state.preferences.reminder = false;
+    persistState({ scheduleCloud: false });
+    showToast('Allow phone notifications to enable reminders');
+    renderApp();
+    return;
+  }
+
+  showToast(`Workout reminder enabled for ${formatReminderTime()}`);
+  renderApp();
+}
+
+async function sendTestPhoneNotification() {
+  if (!canUseNativePhoneNotifications()) {
+    showToast('Install the Android app to test phone notifications');
+    renderApp();
+    return;
+  }
+  const granted = await ensureNativeNotificationPermission({ prompt: true });
+  if (!granted) {
+    showToast('Allow phone notifications to run a test');
+    renderApp();
+    return;
+  }
+  const plugin = getLocalNotificationsPlugin();
+  await ensureNativeNotificationChannel();
+  await cancelNativeNotifications([TEST_NOTIFICATION_ID]);
+  await plugin.schedule({
+    notifications: [
+      {
+        id: TEST_NOTIFICATION_ID,
+        title: 'SA7D Test Notification',
+        body: 'Phone notifications are working even when the app is closed.',
+        largeBody: 'Phone notifications are working even when the app is closed.',
+        channelId: WORKOUT_REMINDER_CHANNEL_ID,
+        iconColor: '#8b5cf6',
+        schedule: {
+          at: new Date(Date.now() + 5000),
+          allowWhileIdle: true
+        }
+      }
+    ]
+  });
+  showToast('Test phone notification will appear in 5 seconds');
+  renderApp();
+}
+
+async function initNativeNotifications() {
+  if (!canUseNativePhoneNotifications()) {
+    return;
+  }
+  const plugin = getLocalNotificationsPlugin();
+  if (plugin?.addListener && !nativeNotificationListenerBound) {
+    nativeNotificationListenerBound = true;
+    await plugin.addListener('localNotificationActionPerformed', () => {
+      state.ui.screen = 'notifications';
+      requestScrollReset();
+      persistState({ scheduleCloud: false });
+      renderApp();
+    });
+  }
+  try {
+    await syncNativeWorkoutReminder({ prompt: false });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 function shouldUseWebsiteAuthEntry() {
   return isWebsiteMode() && isCloudAvailable();
 }
@@ -3934,10 +4138,24 @@ function renderProfile() {
           <span class="status-dot">${icon('bell')}</span>
           <span style="text-align:left;">
             <strong class="list-title">Workout Reminder</strong>
-            <span class="list-subtitle">${state.preferences.reminder ? 'On' : 'Off'}</span>
+            <span class="list-subtitle">${escapeHtml(reminderPreferenceCopy())}</span>
           </span>
           <span class="switch ${state.preferences.reminder ? 'active' : ''}"></span>
         </button>
+        ${
+          canUseNativePhoneNotifications()
+            ? `
+              <button class="menu-item" type="button" data-action="send-test-phone-notification">
+                <span class="status-dot">${icon('bell')}</span>
+                <span style="text-align:left;">
+                  <strong class="list-title">Test Phone Notification</strong>
+                  <span class="list-subtitle">Send a real phone popup in 5 seconds</span>
+                </span>
+                <span class="status-dot">${icon('chevronRight')}</span>
+              </button>
+            `
+            : ''
+        }
         <button class="menu-item" type="button" data-action="open-screen" data-screen="nutrition">
           <span class="status-dot">${icon('bolt')}</span>
           <span style="text-align:left;">
@@ -5336,10 +5554,12 @@ root.addEventListener('click', (event) => {
   }
 
   if (action === 'toggle-reminder') {
-    state.preferences.reminder = !state.preferences.reminder;
-    persistState();
-    showToast(`Workout reminder ${state.preferences.reminder ? 'enabled' : 'disabled'}`);
-    renderApp();
+    void handleReminderToggle();
+    return;
+  }
+
+  if (action === 'send-test-phone-notification') {
+    void sendTestPhoneNotification();
     return;
   }
 
@@ -5730,6 +5950,7 @@ root.addEventListener('submit', (event) => {
 
 renderApp();
 initCloudAuth();
+void initNativeNotifications();
 
 if ('serviceWorker' in navigator) {
   let reloadingForServiceWorker = false;

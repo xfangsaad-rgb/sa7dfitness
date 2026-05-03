@@ -22,6 +22,10 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    if (project.path == ':capacitor-local-notifications') {
+        project.buildDir = new File(rootDir, 'plugin-build/capacitor-local-notifications')
+    }
 }
 
 task clean(type: Delete) {

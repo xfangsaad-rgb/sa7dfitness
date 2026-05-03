@@ -7,8 +7,10 @@ tools/
 home-check.png
 android/.gradle/
 android/.gradle-user/
+android/.android-user/
 android/app/build/
 android/build/
+android/plugin-build/
 android/local.properties
 .firebase/
 firebase-debug.log
